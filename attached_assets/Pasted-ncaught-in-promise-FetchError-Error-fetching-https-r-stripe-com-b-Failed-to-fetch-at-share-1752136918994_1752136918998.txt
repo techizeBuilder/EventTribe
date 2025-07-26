@@ -1,0 +1,43 @@
+ncaught (in promise) FetchError: Error fetching https://r.stripe.com/b: Failed to fetch
+    at shared-29d83e6dce5d23438c5f74a025ccf6d8.js:1:217281Understand this error
+PaymentForm.jsx:81 Payment error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+handleSubmit @ PaymentForm.jsx:81Understand this error
+EventDetailsPage.jsx:184 Payment error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+handlePaymentError @ EventDetailsPage.jsx:184Understand this error
+PaymentForm.jsx:81 Payment error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+handleSubmit @ PaymentForm.jsx:81
+await in handleSubmit
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchDiscreteEvent @ react-dom.development.js:6430Understand this error
+EventDetailsPage.jsx:184 Payment error: SyntaxError: Unexpected token '<', "<!doctype "... is not valid JSON
+handlePaymentError @ EventDetailsPage.jsx:184
+handleSubmit @ PaymentForm.jsx:83
+await in handleSubmit
+callCallback2 @ react-dom.development.js:4164
+invokeGuardedCallbackDev @ react-dom.development.js:4213
+invokeGuardedCallback @ react-dom.development.js:4277
+invokeGuardedCallbackAndCatchFirstError @ react-dom.development.js:4291
+executeDispatch @ react-dom.development.js:9041
+processDispatchQueueItemsInOrder @ react-dom.development.js:9073
+processDispatchQueue @ react-dom.development.js:9086
+dispatchEventsForPlugins @ react-dom.development.js:9097
+(anonymous) @ react-dom.development.js:9288
+batchedUpdates$1 @ react-dom.development.js:26179
+batchedUpdates @ react-dom.development.js:3991
+dispatchEventForPluginEventSystem @ react-dom.development.js:9287
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ react-dom.development.js:6465
+dispatchEvent @ react-dom.development.js:6457
+dispatchDiscreteEvent @ react-dom.development.js:6430Understand this error

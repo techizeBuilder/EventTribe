@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Login for Event Creation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #1a1a1a; color: white; }
+        button { background: #4CAF50; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; }
+        button:hover { background: #45a049; }
+        .result { background: #333; padding: 20px; border-radius: 5px; margin: 20px 0; white-space: pre-wrap; }
+        .error { background: #8B0000; }
+        .success { background: #006400; }
+    </style>
+</head>
+<body>
+    <h1>Quick Login for Event Creation Testing</h1>
+    <p>Click the button below to create a test organizer account and get authentication token:</p>
+    
+    <button onclick="testLogin()">Create Test Organizer & Login</button>
+    
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <h2>Steps after successful login:</h2>
+    <ol>
+        <li>The token will be automatically saved to localStorage</li>
+        <li>Go to the create event page</li>
+        <li>Fill out the form and test event creation</li>
+    </ol>
+
+    <script>
+        async function testLogin() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Creating test organizer account...';
+
+            try {
+                const response = await fetch('/api/auth/test-login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store the token in localStorage
+                    localStorage.setItem('token', data.accessToken);
+                    localStorage.setItem('authToken', data.accessToken);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = `Success! ✓
+${data.message}
+
+Token saved to localStorage: ${data.accessToken.substring(0, 50)}...
+
+User: ${data.user.firstName} ${data.user.lastName} (${data.user.email})
+Role: ${data.user.role}
+
+You can now create events! Go to the create event page.`;
+                    
+                    // Show link to create event page
+                    const link = document.createElement('a');
+                    link.href = '/create-event';
+                    link.textContent = 'Go to Create Event Page';
+                    link.style.color = '#4CAF50';
+                    link.style.textDecoration = 'none';
+                    link.style.fontSize = '18px';
+                    link.style.fontWeight = 'bold';
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(document.createElement('br'));
+                    resultDiv.appendChild(link);
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = `Error: ${data.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `Network Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

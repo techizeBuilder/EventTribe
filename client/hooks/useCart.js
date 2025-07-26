@@ -1,0 +1,276 @@
+import { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
+
+export const useCart = () => {
+  const [cartItems, setCartItems] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [cartCount, setCartCount] = useState(0);
+  const [lastToastTime, setLastToastTime] = useState(0);
+  const { user } = useSelector(state => state.auth);
+
+  // Load cart from API on mount
+  useEffect(() => {
+    if (user?.email) {
+      fetchCart();
+      fetchCartCount();
+    } else {
+      setIsLoading(false);
+    }
+  }, [user?.email]);
+
+  const fetchCart = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const response = await fetch(`/api/cart/${encodeURIComponent(user.email)}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCartItems(data.items || []);
+      } else {
+        console.error('Failed to fetch cart:', data.error);
+      }
+    } catch (error) {
+      console.error('Error fetching cart:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchCartCount = async () => {
+    if (!user?.email) return;
+    
+    try {
+      const response = await fetch(`/api/cart/count/${encodeURIComponent(user.email)}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setCartCount(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching cart count:', error);
+    }
+  };
+
+  const addToCart = async (eventId, eventTitle, ticketType, quantity = 1) => {
+    if (!user?.email) {
+      toast.error('Please login to add items to cart');
+      return;
+    }
+
+    try {
+      // Immediately update the cart count for instant feedback
+      setCartCount(prev => prev + quantity);
+
+      const response = await fetch('/api/cart/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userEmail: user.email,
+          eventId,
+          eventTitle,
+          ticketType,
+          quantity
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        await fetchCart();
+        await fetchCartCount();
+        // Prevent duplicate toasts within 2 seconds
+        const now = Date.now();
+        if (now - lastToastTime > 2000) {
+          toast.success(`Added ${quantity} ${ticketType.name} ticket(s) to cart`);
+          setLastToastTime(now);
+        }
+      } else {
+        // Revert the optimistic update if the request fails
+        setCartCount(prev => prev - quantity);
+        toast.error(data.error || 'Failed to add item to cart');
+      }
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      // Revert the optimistic update if the request fails
+      setCartCount(prev => prev - quantity);
+      toast.error('Failed to add item to cart');
+    }
+  };
+
+  const removeFromCart = async (itemId) => {
+    if (!user?.email) return;
+
+    try {
+      // Optimistically update UI first
+      const itemToRemove = cartItems.find(item => item._id === itemId);
+      if (itemToRemove) {
+        setCartItems(prev => prev.filter(item => item._id !== itemId));
+        setCartCount(prev => Math.max(0, prev - itemToRemove.quantity));
+      }
+
+      const response = await fetch('/api/cart/remove', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userEmail: user.email,
+          itemId
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Verify with server state
+        await fetchCart();
+        await fetchCartCount();
+        
+        // Check if enough time has passed since last toast
+        const now = Date.now();
+        if (now - lastToastTime > 2000) {
+          toast.success('Item removed from cart');
+          setLastToastTime(now);
+        }
+      } else {
+        // Revert optimistic update on failure
+        await fetchCart();
+        await fetchCartCount();
+        toast.error(data.error || 'Failed to remove item from cart');
+      }
+    } catch (error) {
+      console.error('Error removing from cart:', error);
+      // Revert optimistic update on error
+      await fetchCart();
+      await fetchCartCount();
+      toast.error('Failed to remove item from cart');
+    }
+  };
+
+  const updateQuantity = async (itemId, newQuantity) => {
+    if (!user?.email) return;
+
+    try {
+      // Optimistically update UI first
+      const itemToUpdate = cartItems.find(item => item._id === itemId);
+      if (itemToUpdate) {
+        const quantityDiff = newQuantity - itemToUpdate.quantity;
+        setCartItems(prev => 
+          prev.map(item => 
+            item._id === itemId 
+              ? { ...item, quantity: newQuantity }
+              : item
+          )
+        );
+        setCartCount(prev => Math.max(0, prev + quantityDiff));
+      }
+
+      const response = await fetch('/api/cart/update', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userEmail: user.email,
+          itemId,
+          quantity: newQuantity
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Verify with server state
+        await fetchCart();
+        await fetchCartCount();
+      } else {
+        // Revert optimistic update on failure
+        await fetchCart();
+        await fetchCartCount();
+        toast.error(data.error || 'Failed to update item quantity');
+      }
+    } catch (error) {
+      console.error('Error updating cart item:', error);
+      // Revert optimistic update on error
+      await fetchCart();
+      await fetchCartCount();
+      toast.error('Failed to update item quantity');
+    }
+  };
+
+  const clearCart = async () => {
+    if (!user?.email) return;
+
+    try {
+      // Optimistically update UI first
+      setCartItems([]);
+      setCartCount(0);
+
+      const response = await fetch(`/api/cart/clear/${encodeURIComponent(user.email)}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Check if enough time has passed since last toast
+        const now = Date.now();
+        if (now - lastToastTime > 2000) {
+          toast.success('Cart cleared');
+          setLastToastTime(now);
+        }
+      } else {
+        // Revert optimistic update on failure
+        await fetchCart();
+        await fetchCartCount();
+        toast.error(data.error || 'Failed to clear cart');
+      }
+    } catch (error) {
+      console.error('Error clearing cart:', error);
+      // Revert optimistic update on error
+      await fetchCart();
+      await fetchCartCount();
+      toast.error('Failed to clear cart');
+    }
+  };
+
+  const getTotalItems = () => {
+    return cartItems.reduce((total, item) => total + item.quantity, 0);
+  };
+
+  const getTotalPrice = () => {
+    return cartItems.reduce((total, item) => {
+      return total + (item.ticketType.price * item.quantity);
+    }, 0);
+  };
+
+  const getCartSummary = () => {
+    return cartItems.map(item => ({
+      eventId: item.eventId,
+      eventTitle: item.eventTitle,
+      name: item.ticketType.name,
+      price: item.ticketType.price,
+      quantity: item.quantity,
+      total: item.ticketType.price * item.quantity
+    }));
+  };
+
+  return {
+    cartItems,
+    cartCount,
+    isLoading,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    getTotalItems,
+    getTotalPrice,
+    getCartSummary,
+    fetchCart,
+    fetchCartCount
+  };
+};
