@@ -20,12 +20,14 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 // Initialize Stripe
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2023-10-16",
+  });
+} else {
+  console.log('[WARNING] Stripe not configured - missing STRIPE_SECRET_KEY environment variable. Payment features will be disabled.');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
 
 // Email configuration
 const emailTransporter = nodemailer.createTransport({

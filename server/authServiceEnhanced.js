@@ -70,8 +70,8 @@ async function sendLoginNotificationEmail(user) {
   }
 }
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'fallback-jwt-secret-for-development-only';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'fallback-refresh-secret-for-development-only';
 const MONGO_URI =
   process.env.MONGODB_URI ||
    "mongodb+srv://jeeturadicalloop:Mjvesqnj8gY3t0zP@cluster0.by2xy6x.mongodb.net/eventTribe";
@@ -102,13 +102,15 @@ class EnhancedAuthService {
   }
 
   setupGoogleAuth() {
-    passport.use(
-      new GoogleStrategy(
-        {
-          clientID: process.env.GOOGLE_CLIENT_ID,
-          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-          callbackURL: "/api/auth/google/callback",
-        },
+    // Only setup Google OAuth if credentials are provided
+    if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+      passport.use(
+        new GoogleStrategy(
+          {
+            clientID: process.env.GOOGLE_CLIENT_ID,
+            clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            callbackURL: "/api/auth/google/callback",
+          },
         async (accessToken, refreshToken, profile, done) => {
           try {
             // Check if user exists with Google ID
@@ -163,6 +165,9 @@ class EnhancedAuthService {
         },
       ),
     );
+    } else {
+      console.log('[Enhanced Auth] Google OAuth not configured - missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    }
 
     passport.serializeUser((user, done) => {
       done(null, user._id);
