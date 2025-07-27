@@ -91,8 +91,15 @@ export default function CreateEvent() {
         try {
           const eventData = JSON.parse(duplicateEventData);
           console.log('Loading duplicate event data:', eventData);
+          console.log('Event category:', eventData.category);
+          console.log('Event ticket types:', eventData.ticketTypes);
+          console.log('Event maxAttendees:', eventData.maxAttendees);
           
           // Pre-fill ALL form data including dates, capacity, venue, etc.
+          const totalCapacity = eventData.ticketTypes 
+            ? eventData.ticketTypes.reduce((total, ticket) => total + (ticket.quantity || 0), 0)
+            : (eventData.maxAttendees || eventData.capacity || "");
+
           setFormData({
             title: eventData.title || "",
             venueName: eventData.venueName || eventData.venue || "",
@@ -102,9 +109,9 @@ export default function CreateEvent() {
             description: eventData.description || "",
             isRecurring: eventData.isRecurring || false,
             ticketPrice: eventData.ticketPrice || eventData.price || "",
-            maxAttendees: eventData.maxAttendees || eventData.capacity || "",
-            capacity: eventData.capacity || eventData.maxAttendees || "",
-            category: eventData.category || "",
+            maxAttendees: totalCapacity,
+            capacity: totalCapacity,
+            category: eventData.category || "", // This should now work properly
             showOnExplore: eventData.showOnExplore || false,
             eventType: eventData.eventType || "",
             status: eventData.status || "",
