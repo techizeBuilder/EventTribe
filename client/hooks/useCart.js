@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { useSelector } from 'react-redux';
 
+// Global cache to prevent duplicate requests across multiple components
+let globalCartData = { items: [], count: 0, lastFetch: 0 };
+let pendingFetchPromise = null;
+
 export const useCart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,28 +26,64 @@ export const useCart = () => {
   const fetchCart = async () => {
     if (!user?.email) return;
     
-    try {
-      // Add cache busting to prevent stale data
-      const timestamp = Date.now();
-      const response = await fetch(`/api/cart/${encodeURIComponent(user.email)}?t=${timestamp}`, {
-        cache: 'no-cache',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        }
-      });
-      const data = await response.json();
-      
-      console.log('[Cart] Fetched cart data:', data);
-      
-      if (response.ok) {
-        setCartItems(data.items || []);
-      } else {
-        console.error('Failed to fetch cart:', data.error);
+    // Throttle requests - only allow one request per second
+    const now = Date.now();
+    if (now - globalCartData.lastFetch < 1000 && !pendingFetchPromise) {
+      console.log('[Cart] Using cached data to prevent excessive requests');
+      setCartItems(globalCartData.items);
+      setCartCount(globalCartData.count);
+      setIsLoading(false);
+      return;
+    }
+    
+    // If there's already a pending request, wait for it
+    if (pendingFetchPromise) {
+      try {
+        await pendingFetchPromise;
+        setCartItems(globalCartData.items);
+        setCartCount(globalCartData.count);
+        setIsLoading(false);
+        return;
+      } catch (error) {
+        // Continue with new request if pending one failed
       }
+    }
+    
+    try {
+      pendingFetchPromise = (async () => {
+        // Add aggressive cache busting to prevent stale data
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(7);
+        const response = await fetch(`/api/cart/${encodeURIComponent(user.email)}?t=${timestamp}&r=${random}`, {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          }
+        });
+        const data = await response.json();
+        
+        console.log('[Cart] Fetched cart data:', data);
+        
+        if (response.ok) {
+          globalCartData = {
+            items: data.items || [],
+            count: data.count || (data.items || []).length,
+            lastFetch: Date.now()
+          };
+          setCartItems(globalCartData.items);
+          setCartCount(globalCartData.count);
+        } else {
+          console.error('Failed to fetch cart:', data.error);
+        }
+      })();
+      
+      await pendingFetchPromise;
     } catch (error) {
       console.error('Error fetching cart:', error);
     } finally {
+      pendingFetchPromise = null;
       setIsLoading(false);
     }
   };
@@ -51,14 +91,24 @@ export const useCart = () => {
   const fetchCartCount = async () => {
     if (!user?.email) return;
     
+    // Use cached count if available and recent
+    const now = Date.now();
+    if (now - globalCartData.lastFetch < 1000 && globalCartData.count !== undefined) {
+      console.log('[Cart] Using cached count to prevent excessive requests');
+      setCartCount(globalCartData.count);
+      return;
+    }
+    
     try {
-      // Add cache busting to prevent stale data
+      // Add aggressive cache busting to prevent stale data
       const timestamp = Date.now();
-      const response = await fetch(`/api/cart/count/${encodeURIComponent(user.email)}?t=${timestamp}`, {
-        cache: 'no-cache',
+      const random = Math.random().toString(36).substring(7);
+      const response = await fetch(`/api/cart/count/${encodeURIComponent(user.email)}?t=${timestamp}&r=${random}`, {
+        cache: 'no-store',
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       const data = await response.json();
@@ -66,7 +116,9 @@ export const useCart = () => {
       console.log('[Cart] Fetched cart count:', data);
       
       if (response.ok) {
-        setCartCount(data.count || 0);
+        globalCartData.count = data.count || 0;
+        globalCartData.lastFetch = Date.now();
+        setCartCount(globalCartData.count);
       }
     } catch (error) {
       console.error('Error fetching cart count:', error);
@@ -160,9 +212,16 @@ export const useCart = () => {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        // Force refresh from server to ensure sync
+        // Force refresh from server to ensure sync with a delay to ensure database is updated
         console.log('[Cart] Item removed successfully, refreshing cart state');
-        await Promise.all([fetchCart(), fetchCartCount()]);
+        
+        // Clear cache and force fresh data after successful removal
+        globalCartData = { items: [], count: 0, lastFetch: 0 };
+        
+        // Small delay to ensure database consistency, then fetch fresh data
+        setTimeout(async () => {
+          await Promise.all([fetchCart(), fetchCartCount()]);
+        }, 200);
         
         // Check if enough time has passed since last toast
         const now = Date.now();
