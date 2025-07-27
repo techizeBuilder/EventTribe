@@ -39,11 +39,16 @@ export default function CreateEvent() {
     endDate: "",
     description: "",
     isRecurring: false,
-
     ticketPrice: "",
     maxAttendees: "",
+    capacity: "",
     category: "",
     showOnExplore: false,
+    eventType: "",
+    status: "",
+    price: "",
+    location: "",
+    venue: "",
   });
 
   const [tickets, setTickets] = useState([]);
@@ -87,19 +92,25 @@ export default function CreateEvent() {
           const eventData = JSON.parse(duplicateEventData);
           console.log('Loading duplicate event data:', eventData);
           
-          // Pre-fill form data
+          // Pre-fill ALL form data including dates, capacity, venue, etc.
           setFormData({
             title: eventData.title || "",
-            venueName: eventData.venueName || "",
-            address: eventData.address || "",
-            startDate: "", // Always clear dates for duplicates
-            endDate: "", // Always clear dates for duplicates
+            venueName: eventData.venueName || eventData.venue || "",
+            address: eventData.address || eventData.location || "",
+            startDate: eventData.startDate || "", // Keep original dates
+            endDate: eventData.endDate || "", // Keep original dates
             description: eventData.description || "",
             isRecurring: eventData.isRecurring || false,
-            ticketPrice: eventData.ticketPrice || "",
-            maxAttendees: eventData.maxAttendees || "",
+            ticketPrice: eventData.ticketPrice || eventData.price || "",
+            maxAttendees: eventData.maxAttendees || eventData.capacity || "",
+            capacity: eventData.capacity || eventData.maxAttendees || "",
             category: eventData.category || "",
             showOnExplore: eventData.showOnExplore || false,
+            eventType: eventData.eventType || "",
+            status: eventData.status || "",
+            price: eventData.price || eventData.ticketPrice || "",
+            location: eventData.location || eventData.address || "",
+            venue: eventData.venue || eventData.venueName || "",
           });
 
           // Pre-fill tickets if they exist
@@ -121,10 +132,17 @@ export default function CreateEvent() {
             setEventType('rsvp');
           }
 
+          // Handle image duplication if exists
+          if (eventData.image || eventData.imageUrl) {
+            const imageUrl = eventData.image || eventData.imageUrl;
+            setImagePreview(imageUrl);
+            // Note: We can't set selectedImage file object, but we can show the preview
+          }
+
           // Clear the duplicate data from localStorage after loading
           localStorage.removeItem('duplicateEventData');
           
-          toast.success('Event data loaded for duplication. Please review and update the details.');
+          toast.success('Event data loaded for duplication. All fields have been pre-filled - please review and update as needed.');
         } catch (error) {
           console.error('Error loading duplicate event data:', error);
           toast.error('Failed to load event data for duplication');

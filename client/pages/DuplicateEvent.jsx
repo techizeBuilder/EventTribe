@@ -68,16 +68,14 @@ function DuplicateEvent() {
     // Store the event data in localStorage temporarily
     const eventDataForDuplication = {
       ...event,
-      // Remove fields that shouldn't be copied
+      // Remove only system fields that shouldn't be copied
       _id: undefined,
       id: undefined,
       createdAt: undefined,
       updatedAt: undefined,
       organizerId: undefined,
-      // Clear dates to force user to set new ones
-      startDate: '',
-      endDate: '',
-      // Add prefix to title to indicate it's a duplicate
+      // Keep ALL original data including dates, capacity, venue, etc.
+      // Only modify the title to indicate it's a duplicate
       title: `${event.title} - Copy`,
     };
 
