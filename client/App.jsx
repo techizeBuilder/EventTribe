@@ -41,7 +41,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage"; //Import the new Page
 import OrganizerLogin from "./pages/OrganizerLogin";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
-import DuplicateEventPage from "./pages/DuplicateEventPage";
+import DuplicateEvent from "./pages/DuplicateEvent";
 
 function AppContent() {
   const location = useLocation();
@@ -97,7 +97,7 @@ function AppContent() {
             <Route path="management" element={<Management />} />
             <Route path="createEvent" element={<CreateEvent />} />
             <Route path="editEvent" element={<EditEvent />} />
-            <Route path="duplicate-event" element={<DuplicateEventPage />} />
+            <Route path="duplicate-event" element={<DuplicateEvent />} />
             <Route path="payouts" element={<Payouts />} />
             <Route path="disputes" element={<Disputes />} />
 

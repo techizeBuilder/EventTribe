@@ -8,9 +8,10 @@ import {
   FiUsers,
   FiImage,
   FiUpload,
+  FiCopy,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   resizeImage,
   isValidImage,
@@ -48,6 +49,8 @@ export default function CreateEvent() {
   const [tickets, setTickets] = useState([]);
 
   const navigate = useNavigate();
+  const location = useLocation();
+  const [isDuplicateMode, setIsDuplicateMode] = useState(false);
 
   // Check user authentication and role on component mount
   useEffect(() => {
@@ -69,6 +72,66 @@ export default function CreateEvent() {
       return;
     }
   }, [navigate]);
+
+  // Handle duplicate mode - load pre-filled data
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const duplicate = urlParams.get('duplicate');
+    
+    if (duplicate === 'true') {
+      setIsDuplicateMode(true);
+      const duplicateEventData = localStorage.getItem('duplicateEventData');
+      
+      if (duplicateEventData) {
+        try {
+          const eventData = JSON.parse(duplicateEventData);
+          console.log('Loading duplicate event data:', eventData);
+          
+          // Pre-fill form data
+          setFormData({
+            title: eventData.title || "",
+            venueName: eventData.venueName || "",
+            address: eventData.address || "",
+            startDate: "", // Always clear dates for duplicates
+            endDate: "", // Always clear dates for duplicates
+            description: eventData.description || "",
+            isRecurring: eventData.isRecurring || false,
+            ticketPrice: eventData.ticketPrice || "",
+            maxAttendees: eventData.maxAttendees || "",
+            category: eventData.category || "",
+            showOnExplore: eventData.showOnExplore || false,
+          });
+
+          // Pre-fill tickets if they exist
+          if (eventData.tickets && Array.isArray(eventData.tickets)) {
+            const duplicatedTickets = eventData.tickets.map(ticket => ({
+              ...ticket,
+              id: Date.now() + Math.random(), // Generate new IDs for duplicated tickets
+              sold: 0, // Reset sold count for new event
+            }));
+            setTickets(duplicatedTickets);
+          }
+
+          // Set event type if it exists, default to 'ticketed' if not specified
+          if (eventData.eventType) {
+            setEventType(eventData.eventType);
+          } else if (eventData.tickets && eventData.tickets.length > 0) {
+            setEventType('ticketed');
+          } else {
+            setEventType('rsvp');
+          }
+
+          // Clear the duplicate data from localStorage after loading
+          localStorage.removeItem('duplicateEventData');
+          
+          toast.success('Event data loaded for duplication. Please review and update the details.');
+        } catch (error) {
+          console.error('Error loading duplicate event data:', error);
+          toast.error('Failed to load event data for duplication');
+        }
+      }
+    }
+  }, [location]);
 
   // Cleanup function for object URLs to prevent memory leaks
   useEffect(() => {
@@ -529,6 +592,12 @@ export default function CreateEvent() {
                 <h2 className="text-white text-lg font-medium">
                   Farhans Organization Presents
                 </h2>
+                {isDuplicateMode && (
+                  <div className="mt-2 inline-flex items-center gap-2 bg-blue-900/50 border border-blue-600 text-blue-300 px-4 py-2 rounded-lg text-sm">
+                    <FiCopy className="w-4 h-4" />
+                    Duplicating Event - Review and Update Details
+                  </div>
+                )}
               </div>
 
               {/* Back Button */}
