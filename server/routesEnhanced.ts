@@ -2323,13 +2323,24 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     try {
       const { userEmail, itemId } = req.body;
       
+      console.log(`[Cart API] Remove request - userEmail: ${userEmail}, itemId: ${itemId}`);
+      
       if (!userEmail || !itemId) {
+        console.log("[Cart API] Missing required fields");
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       await mongoStorage.connect();
-      await mongoStorage.removeFromCart(userEmail, itemId);
-      res.json({ success: true });
+      const result = await mongoStorage.removeFromCart(userEmail, itemId);
+      
+      console.log(`[Cart API] Remove result: ${result}`);
+      
+      if (result) {
+        res.json({ success: true, deleted: true });
+      } else {
+        console.log("[Cart API] No item was deleted");
+        res.json({ success: false, error: "Item not found or already removed" });
+      }
     } catch (error: any) {
       console.error("Remove from cart error:", error);
       res.status(500).json({ error: "Failed to remove item from cart" });

@@ -23,8 +23,18 @@ export const useCart = () => {
     if (!user?.email) return;
     
     try {
-      const response = await fetch(`/api/cart/${encodeURIComponent(user.email)}`);
+      // Add cache busting to prevent stale data
+      const timestamp = Date.now();
+      const response = await fetch(`/api/cart/${encodeURIComponent(user.email)}?t=${timestamp}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
+      
+      console.log('[Cart] Fetched cart data:', data);
       
       if (response.ok) {
         setCartItems(data.items || []);
@@ -42,8 +52,18 @@ export const useCart = () => {
     if (!user?.email) return;
     
     try {
-      const response = await fetch(`/api/cart/count/${encodeURIComponent(user.email)}`);
+      // Add cache busting to prevent stale data
+      const timestamp = Date.now();
+      const response = await fetch(`/api/cart/count/${encodeURIComponent(user.email)}?t=${timestamp}`, {
+        cache: 'no-cache',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
       const data = await response.json();
+      
+      console.log('[Cart] Fetched cart count:', data);
       
       if (response.ok) {
         setCartCount(data.count || 0);
