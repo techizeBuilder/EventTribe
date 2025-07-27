@@ -102,15 +102,29 @@ export const useCart = () => {
   };
 
   const removeFromCart = async (itemId) => {
-    if (!user?.email) return;
+    if (!user?.email) {
+      toast.error('Please log in to manage cart items');
+      return;
+    }
+
+    if (!itemId) {
+      toast.error('Invalid item ID');
+      return;
+    }
 
     try {
+      // Store original state for rollback
+      const originalCartItems = [...cartItems];
+      const originalCartCount = cartCount;
+      
       // Optimistically update UI first
       const itemToRemove = cartItems.find(item => item._id === itemId);
       if (itemToRemove) {
         setCartItems(prev => prev.filter(item => item._id !== itemId));
         setCartCount(prev => Math.max(0, prev - itemToRemove.quantity));
       }
+
+      console.log(`[Cart] Removing item ${itemId} for user ${user.email}`);
 
       const response = await fetch('/api/cart/remove', {
         method: 'DELETE',
@@ -119,16 +133,16 @@ export const useCart = () => {
         },
         body: JSON.stringify({
           userEmail: user.email,
-          itemId
+          itemId: itemId.toString() // Ensure it's a string
         })
       });
 
       const data = await response.json();
       
-      if (response.ok) {
-        // Verify with server state
-        await fetchCart();
-        await fetchCartCount();
+      if (response.ok && data.success) {
+        // Force refresh from server to ensure sync
+        console.log('[Cart] Item removed successfully, refreshing cart state');
+        await Promise.all([fetchCart(), fetchCartCount()]);
         
         // Check if enough time has passed since last toast
         const now = Date.now();
@@ -138,15 +152,15 @@ export const useCart = () => {
         }
       } else {
         // Revert optimistic update on failure
-        await fetchCart();
-        await fetchCartCount();
+        console.error('[Cart] Failed to remove item:', data);
+        setCartItems(originalCartItems);
+        setCartCount(originalCartCount);
         toast.error(data.error || 'Failed to remove item from cart');
       }
     } catch (error) {
-      console.error('Error removing from cart:', error);
-      // Revert optimistic update on error
-      await fetchCart();
-      await fetchCartCount();
+      console.error('[Cart] Error removing from cart:', error);
+      // Force refresh from server to get accurate state
+      await Promise.all([fetchCart(), fetchCartCount()]);
       toast.error('Failed to remove item from cart');
     }
   };

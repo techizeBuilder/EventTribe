@@ -1,4 +1,4 @@
-import { MongoClient } from "mongodb";
+import { MongoClient, ObjectId } from "mongodb";
 
 export class MongoStorage {
   constructor() {
@@ -306,19 +306,25 @@ export class MongoStorage {
 
   async updateCartItem(userEmail, itemId, quantity) {
     try {
+      // Convert itemId to ObjectId if it's a string
+      const query = { 
+        _id: typeof itemId === 'string' ? new ObjectId(itemId) : itemId, 
+        userEmail 
+      };
+      
       if (quantity <= 0) {
-        await this.cart.deleteOne({ _id: itemId, userEmail });
+        await this.cart.deleteOne(query);
         return null;
       }
 
       await this.cart.updateOne(
-        { _id: itemId, userEmail },
+        query,
         {
           $set: { quantity, updatedAt: new Date() },
         },
       );
 
-      return await this.cart.findOne({ _id: itemId, userEmail });
+      return await this.cart.findOne(query);
     } catch (error) {
       console.error("Error updating cart item:", error);
       throw error;
@@ -327,8 +333,15 @@ export class MongoStorage {
 
   async removeFromCart(userEmail, itemId) {
     try {
-      await this.cart.deleteOne({ _id: itemId, userEmail });
-      return true;
+      // Convert itemId to ObjectId if it's a string
+      const query = { 
+        _id: typeof itemId === 'string' ? new ObjectId(itemId) : itemId, 
+        userEmail 
+      };
+      console.log(`[Cart] Removing item for user ${userEmail}, itemId: ${itemId}`);
+      const result = await this.cart.deleteOne(query);
+      console.log(`[Cart] Remove result: ${result.deletedCount} items deleted`);
+      return result.deletedCount > 0;
     } catch (error) {
       console.error("Error removing from cart:", error);
       throw error;
