@@ -15,7 +15,9 @@ export default function HomePage({ setCurrentPage }) {
   const [events, setEvents] = useState([]);
   const [trendingEvents, setTrendingEvents] = useState([]);
   const [pastEvents, setPastEvents] = useState([]);
+  const [categoryEvents, setCategoryEvents] = useState({});
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const heroRef = useRef(null);
   const additionalContentRef = useRef(null);
@@ -48,6 +50,13 @@ export default function HomePage({ setCurrentPage }) {
         setPastEvents(pastData);
       }
 
+      // Fetch a sample category events for display
+      const techResponse = await fetch('/api/events/category/Technology');
+      if (techResponse.ok) {
+        const techData = await techResponse.json();
+        setCategoryEvents(prev => ({ ...prev, Technology: techData }));
+      }
+
     } catch (error) {
       console.error('Error fetching events:', error);
       toast.error('Failed to load events data');
@@ -60,6 +69,30 @@ export default function HomePage({ setCurrentPage }) {
   useEffect(() => {
     fetchEvents();
   }, []);
+
+  // Function to handle category click
+  const handleCategoryClick = async (category) => {
+    if (selectedCategory === category) {
+      setSelectedCategory(null);
+      return;
+    }
+
+    setSelectedCategory(category);
+    
+    // Fetch events for this category if not already loaded
+    if (!categoryEvents[category]) {
+      try {
+        const response = await fetch(`/api/events/category/${category}`);
+        if (response.ok) {
+          const categoryData = await response.json();
+          setCategoryEvents(prev => ({ ...prev, [category]: categoryData }));
+        }
+      } catch (error) {
+        console.error(`Error fetching ${category} events:`, error);
+        toast.error(`Failed to load ${category} events`);
+      }
+    }
+  };
 
   const filteredEvents = events.filter((event) => {
     const matchesName = event.title
@@ -385,16 +418,19 @@ export default function HomePage({ setCurrentPage }) {
                   transition={{ duration: 0.8, delay: 0.8 }}
                 >
                   {[
-                    "PARTY",
-                    "FOOD & DRINK",
-                    "CULTURE",
+                    "TECHNOLOGY",
+                    "MUSIC", 
+                    "BUSINESS",
                     "FITNESS",
                     "NETWORKING",
                     "ENTERTAINMENT",
                   ].map((category, index) => (
                     <motion.div
                       key={category}
-                      className="bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 text-center hover:bg-slate-700/60 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-slate-600/60"
+                      onClick={() => handleCategoryClick(category)}
+                      className={`bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 text-center hover:bg-slate-700/60 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-slate-600/60 ${
+                        selectedCategory === category ? 'bg-red-600/20 border-red-500/50' : ''
+                      }`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.6, delay: 0.8 + index * 0.1 }}
@@ -404,9 +440,45 @@ export default function HomePage({ setCurrentPage }) {
                       <h3 className="text-white font-semibold text-sm">
                         {category}
                       </h3>
+                      {categoryEvents[category] && (
+                        <p className="text-slate-400 text-xs mt-2">
+                          {categoryEvents[category].length} event{categoryEvents[category].length !== 1 ? 's' : ''}
+                        </p>
+                      )}
                     </motion.div>
                   ))}
                 </motion.div>
+
+                {/* Display events for selected category */}
+                {selectedCategory && categoryEvents[selectedCategory] && (
+                  <motion.div
+                    className="mt-12"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <h3 className="text-2xl font-bold text-white mb-6">
+                      {selectedCategory} Events
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {categoryEvents[selectedCategory].map((event, index) => (
+                        <motion.div
+                          key={event.id}
+                          initial={{ opacity: 0, scale: 0.9 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.6, delay: index * 0.1 }}
+                        >
+                          <EventCard event={event} index={index} />
+                        </motion.div>
+                      ))}
+                    </div>
+                    {categoryEvents[selectedCategory].length === 0 && (
+                      <p className="text-slate-400 text-center py-8">
+                        No events found in {selectedCategory} category
+                      </p>
+                    )}
+                  </motion.div>
+                )}
               </div>
             </motion.section>
 

@@ -425,15 +425,117 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get single event by ID (public route)
+  // Get trending events (recent popular events) - MUST BE BEFORE :id route
+  app.get("/api/events/trending", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+
+      // Get published events sorted by views/popularity
+      const events = await mongoStorage.db
+        .collection("events")
+        .find({
+          status: "published",
+        })
+        .sort({ views: -1, socialShares: -1 })
+        .limit(12)
+        .toArray();
+
+      const transformedEvents = events.map((event) => ({
+        id: event._id,
+        _id: event._id,
+        title: event.title || "Untitled Event",
+        category: event.category || "General",
+        date: event.startDate
+          ? new Date(event.startDate).toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })
+          : "TBD",
+        time: event.startDate
+          ? new Date(event.startDate).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : "TBD",
+        location: event.address || event.venue || "Location TBD",
+        image:
+          event.image ||
+          "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop",
+        description: event.description || "",
+        venue: event.venue || "",
+        startDate: event.startDate,
+        endDate: event.endDate,
+        ticketTypes: event.ticketTypes || [],
+        organizer: event.organizerId,
+      }));
+
+      res.json(transformedEvents);
+    } catch (error) {
+      console.error("Error fetching trending events:", error);
+      res.status(500).json({ message: "Failed to fetch trending events" });
+    }
+  });
+
+  // Get past events - MUST BE BEFORE :id route
+  app.get("/api/events/past", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+
+      const currentDate = new Date();
+      const events = await mongoStorage.db
+        .collection("events")
+        .find({
+          status: "published",
+          endDate: { $lt: currentDate },
+        })
+        .sort({ endDate: -1 })
+        .limit(8)
+        .toArray();
+
+      const transformedEvents = events.map((event) => ({
+        id: event._id,
+        _id: event._id,
+        title: event.title || "Untitled Event",
+        category: event.category || "General",
+        date: event.startDate
+          ? new Date(event.startDate).toLocaleDateString("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+            })
+          : "TBD",
+        time: event.startDate
+          ? new Date(event.startDate).toLocaleTimeString("en-US", {
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })
+          : "TBD",
+        location: event.address || event.venue || "Location TBD",
+        image:
+          event.image ||
+          "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop",
+        description: event.description || "",
+        venue: event.venue || "",
+        startDate: event.startDate,
+        endDate: event.endDate,
+        ticketTypes: event.ticketTypes || [],
+        organizer: event.organizerId,
+      }));
+
+      res.json(transformedEvents);
+    } catch (error) {
+      console.error("Error fetching past events:", error);
+      res.status(500).json({ message: "Failed to fetch past events" });
+    }
+  });
+
+  // Get single event by ID (public route) - AFTER specific routes
   app.get("/api/events/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      
-      // Quick validation for special routes that should be handled elsewhere
-      if (id === 'trending' || id === 'past' || id === 'upcoming') {
-        return res.status(400).json({ message: 'Invalid event ID format' });
-      }
       
       // Quick connection check without retry logic
       if (!await mongoStorage.ensureConnection()) {
@@ -508,19 +610,22 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get trending events (recent popular events)
-  app.get("/api/events/trending", async (req, res) => {
+
+
+  // Get events by category
+  app.get("/api/events/category/:category", async (req, res) => {
     try {
       await mongoStorage.connect();
 
-      // Get published events sorted by views/popularity
+      const { category } = req.params;
       const events = await mongoStorage.db
         .collection("events")
         .find({
           status: "published",
+          category: { $regex: new RegExp(category, 'i') } // Case insensitive match
         })
-        .sort({ views: -1, socialShares: -1 })
-        .limit(12)
+        .sort({ startDate: 1 })
+        .limit(6)
         .toArray();
 
       const transformedEvents = events.map((event) => ({
@@ -556,62 +661,8 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       res.json(transformedEvents);
     } catch (error) {
-      console.error("Error fetching trending events:", error);
-      res.status(500).json({ message: "Failed to fetch trending events" });
-    }
-  });
-
-  // Get past events
-  app.get("/api/events/past", async (req, res) => {
-    try {
-      await mongoStorage.connect();
-
-      const currentDate = new Date();
-      const events = await mongoStorage.db
-        .collection("events")
-        .find({
-          status: "published",
-          endDate: { $lt: currentDate },
-        })
-        .sort({ endDate: -1 })
-        .limit(8)
-        .toArray();
-
-      const transformedEvents = events.map((event) => ({
-        id: event._id,
-        _id: event._id,
-        title: event.title || "Untitled Event",
-        category: event.category || "General",
-        date: event.startDate
-          ? new Date(event.startDate).toLocaleDateString("en-US", {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })
-          : "TBD",
-        time: event.startDate
-          ? new Date(event.startDate).toLocaleTimeString("en-US", {
-              hour: "numeric",
-              minute: "2-digit",
-              hour12: true,
-            })
-          : "TBD",
-        location: event.address || event.venue || "Location TBD",
-        image:
-          event.image ||
-          "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop",
-        description: event.description || "",
-        venue: event.venue || "",
-        startDate: event.startDate,
-        endDate: event.endDate,
-        ticketTypes: event.ticketTypes || [],
-        organizer: event.organizerId,
-      }));
-
-      res.json(transformedEvents);
-    } catch (error) {
-      console.error("Error fetching past events:", error);
-      res.status(500).json({ message: "Failed to fetch past events" });
+      console.error("Error fetching events by category:", error);
+      res.status(500).json({ message: "Failed to fetch events by category" });
     }
   });
 
