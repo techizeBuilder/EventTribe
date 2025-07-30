@@ -1236,7 +1236,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       const users = await mongoStorage.db.collection("auth_users").find({}).toArray();
       
       const formattedUsers = users.map(user => ({
-        id: user._id,
+        id: user._id.toString(),
         name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
         email: user.email,
         role: user.role || 'attendee',
@@ -1400,8 +1400,14 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
       
-      const user = await mongoStorage.db.collection("auth_users").findOne({ _id: req.params.userId });
+      // Validate ObjectId format
+      if (!ObjectId.isValid(req.params.userId)) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
+      
+      const user = await mongoStorage.db.collection("auth_users").findOne({ _id: new ObjectId(req.params.userId) });
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -1440,6 +1446,12 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+      
+      // Validate ObjectId format
+      if (!ObjectId.isValid(req.params.userId)) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
       
       const { firstName, lastName, role, status } = req.body;
       
@@ -1458,7 +1470,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       }
       
       const result = await mongoStorage.db.collection("auth_users").updateOne(
-        { _id: req.params.userId },
+        { _id: new ObjectId(req.params.userId) },
         { $set: updateData }
       );
       
@@ -1477,8 +1489,14 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
       
-      const result = await mongoStorage.db.collection("auth_users").deleteOne({ _id: req.params.userId });
+      // Validate ObjectId format
+      if (!ObjectId.isValid(req.params.userId)) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
+      
+      const result = await mongoStorage.db.collection("auth_users").deleteOne({ _id: new ObjectId(req.params.userId) });
       
       if (result.deletedCount === 0) {
         return res.status(404).json({ message: "User not found" });
@@ -1495,6 +1513,12 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId/status", async (req, res) => {
     try {
       await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+      
+      // Validate ObjectId format
+      if (!ObjectId.isValid(req.params.userId)) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
       
       const { status } = req.body;
       
@@ -1513,7 +1537,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       }
       
       const result = await mongoStorage.db.collection("auth_users").updateOne(
-        { _id: req.params.userId },
+        { _id: new ObjectId(req.params.userId) },
         { $set: updateData }
       );
       
@@ -1532,11 +1556,17 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId/role", async (req, res) => {
     try {
       await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+      
+      // Validate ObjectId format
+      if (!ObjectId.isValid(req.params.userId)) {
+        return res.status(400).json({ message: "Invalid user ID format" });
+      }
       
       const { role } = req.body;
       
       const result = await mongoStorage.db.collection("auth_users").updateOne(
-        { _id: req.params.userId },
+        { _id: new ObjectId(req.params.userId) },
         { 
           $set: { 
             role,
