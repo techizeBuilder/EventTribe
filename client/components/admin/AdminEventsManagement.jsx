@@ -30,6 +30,7 @@ export default function AdminEventsManagement() {
   const [viewModal, setViewModal] = useState({ isOpen: false, event: null });
   const [editModal, setEditModal] = useState({ isOpen: false, event: null });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, event: null });
+  const [bookingsModal, setBookingsModal] = useState({ isOpen: false, event: null, bookings: [], loading: false });
   const [actionLoading, setActionLoading] = useState(false);
   
   // Form states
@@ -191,6 +192,29 @@ export default function AdminEventsManagement() {
     }
   };
 
+  const handleViewBookings = async (event) => {
+    setBookingsModal({ isOpen: true, event, bookings: [], loading: true });
+    
+    try {
+      const response = await fetch(`/api/admin/events/${event.id}/bookings`);
+      if (response.ok) {
+        const bookingsData = await response.json();
+        setBookingsModal(prev => ({ 
+          ...prev, 
+          bookings: bookingsData, 
+          loading: false 
+        }));
+      } else {
+        toast.error("Failed to fetch bookings");
+        setBookingsModal(prev => ({ ...prev, loading: false }));
+      }
+    } catch (error) {
+      console.error("Error fetching bookings:", error);
+      toast.error("Failed to fetch bookings");
+      setBookingsModal(prev => ({ ...prev, loading: false }));
+    }
+  };
+
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -336,6 +360,7 @@ export default function AdminEventsManagement() {
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Status</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Tickets</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Revenue</th>
+                <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Bookings</th>
               </tr>
             </thead>
             <tbody>
@@ -388,6 +413,16 @@ export default function AdminEventsManagement() {
                   </td>
                   <td className="p-4">
                     <span className="text-green-400 font-medium">${(event.revenue || 0).toLocaleString()}</span>
+                  </td>
+                  <td className="p-4">
+                    <button 
+                      onClick={() => handleViewBookings(event)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+                      title="View Bookings & Payments"
+                    >
+                      <FiUsers className="w-4 h-4" />
+                      <span>View Bookings</span>
+                    </button>
                   </td>
                 </motion.tr>
               ))}
@@ -625,6 +660,135 @@ export default function AdminEventsManagement() {
                 {actionLoading ? 'Deleting...' : 'Delete Event'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bookings Modal */}
+      {bookingsModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold text-white">Event Bookings & Payments</h3>
+              <button
+                onClick={() => setBookingsModal({ isOpen: false, event: null, bookings: [], loading: false })}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            {bookingsModal.event && (
+              <div className="mb-6 p-4 bg-gray-700 rounded-lg">
+                <h4 className="text-lg font-semibold text-white mb-2">{bookingsModal.event.title}</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-400">Date:</span>
+                    <p className="text-white">{formatDate(bookingsModal.event.startDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Venue:</span>
+                    <p className="text-white">{bookingsModal.event.venue || 'TBD'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Status:</span>
+                    <p className="text-white">{bookingsModal.event.status}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Revenue:</span>
+                    <p className="text-green-400">${(bookingsModal.event.revenue || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {bookingsModal.loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                <span className="ml-3 text-gray-400">Loading bookings...</span>
+              </div>
+            ) : bookingsModal.bookings.length === 0 ? (
+              <div className="text-center py-8">
+                <FiUsers className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+                <p className="text-gray-400">No bookings found for this event</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-gray-700 rounded-lg overflow-hidden">
+                  <div className="grid grid-cols-6 gap-4 p-4 bg-gray-600 text-sm font-medium text-gray-300">
+                    <div>Booking ID</div>
+                    <div>Customer</div>
+                    <div>Tickets</div>
+                    <div>Amount</div>
+                    <div>Payment Status</div>
+                    <div>Date</div>
+                  </div>
+                  {bookingsModal.bookings.map((booking, index) => (
+                    <div key={booking._id || index} className="grid grid-cols-6 gap-4 p-4 border-t border-gray-600 text-sm">
+                      <div className="text-blue-400 font-mono">{booking.bookingId}</div>
+                      <div>
+                        <p className="text-white font-medium">{booking.userName}</p>
+                        <p className="text-gray-400 text-xs">{booking.userEmail}</p>
+                      </div>
+                      <div className="text-white">
+                        {booking.ticketDetails && Array.isArray(booking.ticketDetails) 
+                          ? booking.ticketDetails.reduce((total, ticket) => total + ticket.quantity, 0)
+                          : 1
+                        } tickets
+                      </div>
+                      <div className="text-green-400 font-medium">
+                        ${booking.totalAmount.toFixed(2)} {(booking.currency || 'USD').toUpperCase()}
+                      </div>
+                      <div>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          booking.status === 'confirmed' 
+                            ? 'bg-green-100 text-green-800 border border-green-200' 
+                            : 'bg-yellow-100 text-yellow-800 border border-yellow-200'
+                        }`}>
+                          {booking.status}
+                        </span>
+                      </div>
+                      <div className="text-gray-400">
+                        {new Date(booking.bookingDate).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="mt-6 p-4 bg-gray-700 rounded-lg">
+                  <h5 className="text-lg font-semibold text-white mb-3">Booking Summary</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="text-gray-400">Total Bookings:</span>
+                      <p className="text-white font-medium">{bookingsModal.bookings.length}</p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Total Revenue:</span>
+                      <p className="text-green-400 font-medium">
+                        ${bookingsModal.bookings.reduce((sum, booking) => sum + booking.totalAmount, 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Confirmed:</span>
+                      <p className="text-white font-medium">
+                        {bookingsModal.bookings.filter(b => b.status === 'confirmed').length}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-gray-400">Total Tickets:</span>
+                      <p className="text-white font-medium">
+                        {bookingsModal.bookings.reduce((sum, booking) => {
+                          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+                            return sum + booking.ticketDetails.reduce((total, ticket) => total + ticket.quantity, 0);
+                          }
+                          return sum + 1;
+                        }, 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

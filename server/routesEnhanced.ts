@@ -1737,6 +1737,44 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get event bookings and payment details
+  app.get("/api/admin/events/:eventId/bookings", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      
+      const { eventId } = req.params;
+      
+      // Find all bookings for this event
+      const bookings = await mongoStorage.db.collection("bookings").find({ 
+        eventId: eventId 
+      }).sort({ bookingDate: -1 }).toArray();
+      
+      // Transform the data for frontend display
+      const formattedBookings = bookings.map(booking => ({
+        _id: booking._id,
+        bookingId: booking.bookingId,
+        eventId: booking.eventId,
+        eventTitle: booking.eventTitle,
+        userName: booking.userName || 'Guest User',
+        userEmail: booking.userEmail || 'guest@example.com',
+        totalAmount: booking.totalAmount || 0,
+        currency: booking.currency || 'USD',
+        status: booking.status || 'confirmed',
+        bookingDate: booking.bookingDate || booking.createdAt,
+        paymentIntentId: booking.paymentIntentId,
+        ticketDetails: booking.ticketDetails || [],
+        createdAt: booking.createdAt
+      }));
+      
+      console.log(`Found ${formattedBookings.length} bookings for event ${eventId}`);
+      
+      res.json(formattedBookings);
+    } catch (error) {
+      console.error("Error fetching event bookings:", error);
+      res.status(500).json({ message: "Failed to fetch event bookings" });
+    }
+  });
+
   // ==================== ORGANIZER DASHBOARD ROUTES ====================
 
   // Mount all organizer routes under /api/organizer
