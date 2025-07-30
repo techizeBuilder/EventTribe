@@ -336,7 +336,6 @@ export default function AdminEventsManagement() {
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Status</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Tickets</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Revenue</th>
-                <th className="text-left p-4 text-gray-300 font-medium min-w-[250px]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -389,41 +388,6 @@ export default function AdminEventsManagement() {
                   </td>
                   <td className="p-4">
                     <span className="text-green-400 font-medium">${(event.revenue || 0).toLocaleString()}</span>
-                  </td>
-                  <td className="p-4">
-                    <div className="flex items-center space-x-1">
-                      <button 
-                        onClick={() => handleViewEvent(event)}
-                        className="text-blue-400 hover:text-blue-300 p-1 rounded"
-                        title="View Event"
-                      >
-                        <FiEye className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleEditEvent(event)}
-                        className="text-green-400 hover:text-green-300 p-1 rounded"
-                        title="Edit Event"
-                      >
-                        <FiEdit className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteEvent(event)}
-                        className="text-red-400 hover:text-red-300 p-1 rounded"
-                        title="Delete Event"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                      <select
-                        value={event.status}
-                        onChange={(e) => handleUpdateEventStatus(event, e.target.value)}
-                        className="text-xs bg-gray-700 text-white border border-gray-600 rounded px-1 py-1 ml-1 max-w-[80px]"
-                      >
-                        <option value="draft">Draft</option>
-                        <option value="published">Published</option>
-                        <option value="cancelled">Cancelled</option>
-                        <option value="completed">Completed</option>
-                      </select>
-                    </div>
                   </td>
                 </motion.tr>
               ))}
