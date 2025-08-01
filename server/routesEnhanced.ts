@@ -2409,6 +2409,8 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     try {
       const { userEmail, eventId, eventTitle, ticketType, quantity } = req.body;
       
+      console.log("Add to cart request:", { userEmail, eventId, eventTitle, ticketType, quantity });
+      
       if (!userEmail || !eventId || !eventTitle || !ticketType || !quantity) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -2419,8 +2421,21 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       }
 
       // Check if event exists and is not expired
-      const event = await mongoStorage.db.collection("events").findOne({ _id: eventId });
+      const { ObjectId } = await import('mongodb');
+      
+      // Handle both string and ObjectId formats
+      let eventObjectId;
+      try {
+        eventObjectId = typeof eventId === 'string' && ObjectId.isValid(eventId) 
+          ? new ObjectId(eventId) 
+          : eventId;
+      } catch (error) {
+        return res.status(400).json({ error: "Invalid event ID format" });
+      }
+
+      const event = await mongoStorage.db.collection("events").findOne({ _id: eventObjectId });
       if (!event) {
+        console.log(`Event not found for ID: ${eventId}, ObjectId: ${eventObjectId}`);
         return res.status(404).json({ error: "Event not found" });
       }
 
@@ -2436,7 +2451,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       }
 
       const cartItem = {
-        eventId,
+        eventId: eventObjectId, // Use the ObjectId for consistency
         eventTitle,
         ticketType,
         quantity: parseInt(quantity)
