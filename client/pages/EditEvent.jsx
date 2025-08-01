@@ -24,7 +24,7 @@ import TicketModal from "../components/TicketModal";
 export default function EditEvent() {
   const navigate = useNavigate();
   const location = useLocation();
-  const eventData = location.state;
+  const eventData = location.state?.eventData;
 
   const [eventType, setEventType] = useState("ticketed"); // Default to ticketed for edit mode
   const [selectedImage, setSelectedImage] = useState(null);
@@ -69,6 +69,7 @@ export default function EditEvent() {
 
     // Load event data if available
     if (eventData) {
+      console.log("EditEvent - Loading event data:", eventData);
       setFormData({
         title: eventData.title || "",
         venueName: eventData.venue || "",

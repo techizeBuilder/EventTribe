@@ -167,6 +167,7 @@ export default function Events() {
 
   // Edit event
   const handleEditEvent = (eventData) => {
+    console.log("Events - Navigating to edit with data:", eventData);
     // Navigate to edit page with event data in state
     navigate("/organizer/editEvent", { state: { eventData } });
   };
