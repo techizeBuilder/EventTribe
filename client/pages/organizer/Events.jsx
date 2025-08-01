@@ -167,8 +167,8 @@ export default function Events() {
 
   // Edit event
   const handleEditEvent = (eventData) => {
-    // Navigate to edit page with event data
-    navigate(`/organizer/editEvent?id=${eventData._id}`);
+    // Navigate to edit page with event data in state
+    navigate("/organizer/editEvent", { state: { eventData } });
   };
 
   // Filter events
