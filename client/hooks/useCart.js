@@ -212,16 +212,14 @@ export const useCart = () => {
       const data = await response.json();
       
       if (response.ok && data.success) {
-        // Force refresh from server to ensure sync with a delay to ensure database is updated
+        // Force refresh from server to ensure sync
         console.log('[Cart] Item removed successfully, refreshing cart state');
         
         // Clear cache and force fresh data after successful removal
         globalCartData = { items: [], count: 0, lastFetch: 0 };
         
-        // Small delay to ensure database consistency, then fetch fresh data
-        setTimeout(async () => {
-          await Promise.all([fetchCart(), fetchCartCount()]);
-        }, 200);
+        // Immediately fetch fresh data to ensure UI is in sync
+        await Promise.all([fetchCart(), fetchCartCount()]);
         
         // Check if enough time has passed since last toast
         const now = Date.now();
