@@ -216,6 +216,19 @@ const EventDetailsPage = () => {
     });
   };
 
+  // Helper function to check if event has expired
+  const isEventExpired = () => {
+    if (!event?.endDate) return false;
+    const currentDate = new Date();
+    const eventEndDate = new Date(event.endDate);
+    return currentDate > eventEndDate;
+  };
+
+  // Helper function to handle expired event actions
+  const handleExpiredEventAction = () => {
+    toast.error("This event is no longer available for booking as the last date has passed.");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 relative">
       {/* Background overlay */}
@@ -431,8 +444,22 @@ const EventDetailsPage = () => {
                                   </p>
                                 </div>
 
-                                {/* All tickets are available - removed availability conditions */}
-                                <div className="flex flex-col space-y-2 sm:space-y-3">
+                                {/* Check if event is expired */}
+                                {isEventExpired() ? (
+                                  <div className="text-center">
+                                    <p className="text-red-400 text-sm mb-2 font-medium">
+                                      Event has ended
+                                    </p>
+                                    <button
+                                      onClick={handleExpiredEventAction}
+                                      className="bg-gray-600 cursor-not-allowed text-gray-300 px-4 py-2 rounded-lg text-sm font-medium"
+                                      disabled
+                                    >
+                                      Booking Unavailable
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col space-y-2 sm:space-y-3">
                                     <div className="flex items-center space-x-2 justify-center sm:justify-start">
                                       <button
                                         onClick={() =>
@@ -477,6 +504,7 @@ const EventDetailsPage = () => {
                                       </button>
                                     )}
                                   </div>
+                                )}
                                 </div>
                             </div>
                           </div>
@@ -485,7 +513,10 @@ const EventDetailsPage = () => {
                   ) : (
                     <div className="bg-black/40 border border-gray-600 rounded-lg p-4 backdrop-blur-sm">
                       <p className="text-gray-300 text-center">
-                        No tickets available for this event
+                        {isEventExpired() 
+                          ? "This event is no longer available for booking as the last date has passed."
+                          : "No tickets available for this event"
+                        }
                       </p>
                     </div>
                   )}

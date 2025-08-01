@@ -1825,6 +1825,30 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid amount" });
       }
 
+      const connected = await mongoStorage.connect();
+      if (!connected) {
+        return res.status(503).json({ error: "Database temporarily unavailable" });
+      }
+
+      // Validate event exists and hasn't expired
+      if (eventId) {
+        const event = await mongoStorage.db.collection("events").findOne({ _id: eventId });
+        if (!event) {
+          return res.status(404).json({ error: "Event not found" });
+        }
+
+        // Check if event has expired
+        if (event.endDate) {
+          const currentDate = new Date();
+          const eventEndDate = new Date(event.endDate);
+          if (currentDate > eventEndDate) {
+            return res.status(400).json({ 
+              error: "This event is no longer available for booking as the last date has passed." 
+            });
+          }
+        }
+      }
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: "usd",
@@ -1859,6 +1883,32 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         userEmail,
         userName
       });
+
+      const connected = await mongoStorage.connect();
+      if (!connected) {
+        return res.status(503).json({ error: "Database temporarily unavailable" });
+      }
+
+      // Validate all events in the cart are not expired
+      for (const item of items) {
+        if (item.eventId) {
+          const event = await mongoStorage.db.collection("events").findOne({ _id: item.eventId });
+          if (!event) {
+            return res.status(404).json({ error: `Event "${item.eventTitle}" not found` });
+          }
+
+          // Check if event has expired
+          if (event.endDate) {
+            const currentDate = new Date();
+            const eventEndDate = new Date(event.endDate);
+            if (currentDate > eventEndDate) {
+              return res.status(400).json({ 
+                error: `Event "${item.eventTitle}" is no longer available for booking as the last date has passed.` 
+              });
+            }
+          }
+        }
+      }
       
       // Create payment intent with line items metadata
       const paymentIntent = await stripe.paymentIntents.create({
@@ -2366,6 +2416,23 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       const connected = await mongoStorage.connect();
       if (!connected) {
         return res.status(503).json({ error: "Database temporarily unavailable" });
+      }
+
+      // Check if event exists and is not expired
+      const event = await mongoStorage.db.collection("events").findOne({ _id: eventId });
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      // Validate event hasn't expired
+      if (event.endDate) {
+        const currentDate = new Date();
+        const eventEndDate = new Date(event.endDate);
+        if (currentDate > eventEndDate) {
+          return res.status(400).json({ 
+            error: "This event is no longer available for booking as the last date has passed." 
+          });
+        }
       }
 
       const cartItem = {

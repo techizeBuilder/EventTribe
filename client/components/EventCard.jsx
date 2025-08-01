@@ -1,15 +1,30 @@
 
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { FiShoppingCart } from 'react-icons/fi'
+import { FiShoppingCart, FiX } from 'react-icons/fi'
 import { useCart } from '../hooks/useCart'
+import { toast } from 'react-hot-toast'
 
 export default function EventCard({ event, index }) {
   const { addToCart } = useCart()
 
+  // Check if event has expired
+  const isEventExpired = () => {
+    if (!event?.endDate) return false;
+    const currentDate = new Date();
+    const eventEndDate = new Date(event.endDate);
+    return currentDate > eventEndDate;
+  };
+
   const handleAddToCart = (e) => {
     e.preventDefault()
     e.stopPropagation()
+    
+    // Check if event has expired
+    if (isEventExpired()) {
+      toast.error("This event is no longer available for booking as the last date has passed.");
+      return;
+    }
     
     // Create a default ticket if none exists
     let defaultTicket;
@@ -91,14 +106,23 @@ export default function EventCard({ event, index }) {
       </Link>
       
       {/* Add to Cart Button - Positioned within card content */}
-      <motion.button
-        onClick={handleAddToCart}
-        className="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-      >
-        <FiShoppingCart className="w-4 h-4" />
-      </motion.button>
+      {isEventExpired() ? (
+        <motion.div
+          className="absolute top-4 right-4 bg-red-600 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 cursor-not-allowed"
+          title="Event has ended"
+        >
+          <FiX className="w-4 h-4" />
+        </motion.div>
+      ) : (
+        <motion.button
+          onClick={handleAddToCart}
+          className="absolute top-4 right-4 bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <FiShoppingCart className="w-4 h-4" />
+        </motion.button>
+      )}
     </div>
   )
 }
