@@ -140,17 +140,20 @@ export default function App() {
             background: "#1f2937",
             color: "#fff",
             border: "1px solid #374151",
+            marginTop: "80px", // Add margin to position below the fixed navbar
           },
           success: {
             style: {
               background: "#065f46",
               color: "#fff",
+              marginTop: "80px",
             },
           },
           error: {
             style: {
               background: "#7f1d1d",
               color: "#fff",
+              marginTop: "80px",
             },
           },
         }}
