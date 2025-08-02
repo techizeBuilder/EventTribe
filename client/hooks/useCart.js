@@ -154,6 +154,12 @@ export const useCart = () => {
       if (response.ok) {
         await fetchCart();
         await fetchCartCount();
+        
+        // Dispatch custom event to notify other components
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('cartUpdated'));
+        }, 100);
+        
         // Prevent duplicate toasts within 2 seconds
         const now = Date.now();
         if (now - lastToastTime > 2000) {
@@ -221,8 +227,10 @@ export const useCart = () => {
         // Immediately fetch fresh data to ensure UI is in sync
         await Promise.all([fetchCart(), fetchCartCount()]);
         
-        // Dispatch custom event to notify other components
-        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        // Dispatch custom event to notify other components with delay
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('cartUpdated'));
+        }, 100);
         
         // Check if enough time has passed since last toast
         const now = Date.now();
