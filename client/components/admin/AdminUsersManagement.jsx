@@ -493,46 +493,186 @@ export default function AdminUsersManagement() {
 
       {/* View User Modal */}
       {viewModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-white">User Details</h2>
-              <button
-                onClick={() => setViewModal({ isOpen: false, user: null })}
-                className="text-gray-400 hover:text-white"
-              >
-                <FiX className="w-6 h-6" />
-              </button>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl w-full max-w-lg border border-gray-700"
+          >
+            {/* Modal Header */}
+            <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-blue-600/10 to-purple-600/10 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <FiUsers className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white">User Profile</h2>
+                    <p className="text-gray-300 text-sm">Complete user information</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewModal({ isOpen: false, user: null })}
+                  className="text-gray-400 hover:text-white hover:bg-gray-700 p-2 rounded-lg transition-all duration-200"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
             </div>
+
+            {/* Modal Body */}
             {viewModal.user && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Name</label>
-                  <p className="text-white">{viewModal.user.name}</p>
+              <div className="p-6 space-y-6">
+                {/* User Avatar & Basic Info */}
+                <div className="flex items-center space-x-4 p-4 bg-gray-700/50 rounded-xl border border-gray-600">
+                  <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-full flex items-center justify-center text-white text-xl font-bold shadow-lg">
+                    {viewModal.user.firstName ? viewModal.user.firstName.charAt(0) : viewModal.user.email.charAt(0)}
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-white">
+                      {viewModal.user.name || 'Unnamed User'}
+                    </h3>
+                    <p className="text-gray-300 text-sm">{viewModal.user.email}</p>
+                    <div className="flex items-center space-x-2 mt-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getRoleColor(viewModal.user.role)}`}>
+                        {viewModal.user.role}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(viewModal.user.status)}`}>
+                        {viewModal.user.status}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-                  <p className="text-white">{viewModal.user.email}</p>
+
+                {/* User Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Contact Information */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider border-b border-gray-600 pb-2">
+                      Contact Information
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
+                        <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                          <FiUserCheck className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Full Name</p>
+                          <p className="text-white font-medium">
+                            {viewModal.user.firstName && viewModal.user.lastName 
+                              ? `${viewModal.user.firstName} ${viewModal.user.lastName}` 
+                              : 'Not provided'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
+                        <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                          <FiShield className="w-4 h-4 text-green-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Phone Number</p>
+                          <p className="text-white font-medium">
+                            {viewModal.user.phoneNumber || 'Not provided'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Account Information */}
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider border-b border-gray-600 pb-2">
+                      Account Information
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
+                        <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                          <FiUserPlus className="w-4 h-4 text-purple-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Member Since</p>
+                          <p className="text-white font-medium">
+                            {viewModal.user.joinDate && !isNaN(new Date(viewModal.user.joinDate)) 
+                              ? new Date(viewModal.user.joinDate).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'long',
+                                  day: 'numeric'
+                                })
+                              : 'N/A'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg">
+                        <div className="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                          <FiEye className="w-4 h-4 text-orange-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400 uppercase tracking-wide">Last Active</p>
+                          <p className="text-white font-medium">
+                            {viewModal.user.lastLogin && !isNaN(new Date(viewModal.user.lastLogin)) 
+                              ? new Date(viewModal.user.lastLogin).toLocaleDateString('en-US', {
+                                  year: 'numeric',
+                                  month: 'short',
+                                  day: 'numeric'
+                                })
+                              : 'Never'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Role</label>
-                  <p className="text-white capitalize">{viewModal.user.role}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
-                  <p className="text-white capitalize">{viewModal.user.status}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Phone</label>
-                  <p className="text-white">{viewModal.user.phoneNumber || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Joined</label>
-                  <p className="text-white">{viewModal.user.joinDate && !isNaN(new Date(viewModal.user.joinDate)) ? new Date(viewModal.user.joinDate).toLocaleDateString() : 'N/A'}</p>
+
+                {/* Verification Status */}
+                <div className="p-4 bg-gray-700/30 rounded-xl border border-gray-600">
+                  <h4 className="text-sm font-semibold text-gray-300 uppercase tracking-wider mb-3">
+                    Verification Status
+                  </h4>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${viewModal.user.emailVerified ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-white text-sm">Email Verification</span>
+                    </div>
+                    <span className={`text-xs font-medium ${viewModal.user.emailVerified ? 'text-green-400' : 'text-red-400'}`}>
+                      {viewModal.user.emailVerified ? 'Verified' : 'Pending'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full ${viewModal.user.phoneVerified ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-white text-sm">Phone Verification</span>
+                    </div>
+                    <span className={`text-xs font-medium ${viewModal.user.phoneVerified ? 'text-green-400' : 'text-red-400'}`}>
+                      {viewModal.user.phoneVerified ? 'Verified' : 'Pending'}
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
-          </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-700 bg-gray-800/50 rounded-b-2xl">
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setViewModal({ isOpen: false, user: null })}
+                  className="px-4 py-2 text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setViewModal({ isOpen: false, user: null });
+                    handleEditUser(viewModal.user);
+                  }}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center space-x-2 transition-colors duration-200"
+                >
+                  <FiEdit className="w-4 h-4" />
+                  <span>Edit User</span>
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 
