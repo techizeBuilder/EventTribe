@@ -107,10 +107,7 @@ export default function AdminSettings() {
 
   const settingsTabs = [
     { id: "general", label: "General", icon: FiSettings },
-    { id: "security", label: "Security", icon: FiShield },
-    { id: "notifications", label: "Notifications", icon: FiBell },
-    { id: "payments", label: "Payments", icon: FiDollarSign },
-    { id: "api", label: "API", icon: FiKey }
+    { id: "security", label: "Security", icon: FiShield }
   ];
 
   const renderGeneralSettings = () => (
@@ -576,9 +573,6 @@ export default function AdminSettings() {
     switch (activeTab) {
       case "general": return renderGeneralSettings();
       case "security": return renderSecuritySettings();
-      case "notifications": return renderNotificationSettings();
-      case "payments": return renderPaymentSettings();
-      case "api": return renderApiSettings();
       default: return renderGeneralSettings();
     }
   };
