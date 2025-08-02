@@ -135,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       const { amount, eventId, eventTitle, ticketDetails } = req.body;
-      
+
       if (!amount || amount <= 0) {
         return res.status(400).json({ error: "Invalid amount" });
       }
@@ -166,13 +166,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/confirm-payment", async (req, res) => {
     try {
       const { paymentIntentId } = req.body;
-      
+
       if (!paymentIntentId) {
         return res.status(400).json({ error: "Payment intent ID is required" });
       }
 
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
+
       if (paymentIntent.status === 'succeeded') {
         // Here you could save the payment details to your database
         // For now, we'll just return success
