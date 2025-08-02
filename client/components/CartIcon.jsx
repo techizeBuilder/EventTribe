@@ -2,10 +2,20 @@ import { FiShoppingCart } from 'react-icons/fi';
 import { useCart } from '../hooks/useCart';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export default function CartIcon() {
-  const { cartCount } = useCart();
+  const { cartCount, fetchCartCount } = useCart();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      fetchCartCount();
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
+  }, [fetchCartCount]);
 
   const handleClick = () => {
     navigate('/cart');

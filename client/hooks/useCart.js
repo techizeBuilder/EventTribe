@@ -221,6 +221,9 @@ export const useCart = () => {
         // Immediately fetch fresh data to ensure UI is in sync
         await Promise.all([fetchCart(), fetchCartCount()]);
         
+        // Dispatch custom event to notify other components
+        window.dispatchEvent(new CustomEvent('cartUpdated'));
+        
         // Check if enough time has passed since last toast
         const now = Date.now();
         if (now - lastToastTime > 2000) {

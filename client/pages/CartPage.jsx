@@ -17,14 +17,26 @@ export default function CartPage() {
     } else {
       await updateQuantity(itemId, newQuantity)
     }
+    // Force a small delay to ensure the UI updates are complete
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+    }, 100)
   }
 
   const handleRemoveItem = async (itemId) => {
     await removeFromCart(itemId)
+    // Force a small delay to ensure the UI updates are complete
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+    }, 100)
   }
 
   const handleClearCart = async () => {
     await clearCart()
+    // Force a small delay to ensure the UI updates are complete
+    setTimeout(() => {
+      window.dispatchEvent(new CustomEvent('cartUpdated'))
+    }, 100)
   }
 
   const calculateTotal = () => {
