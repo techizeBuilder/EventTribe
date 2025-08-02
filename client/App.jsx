@@ -41,6 +41,11 @@ import ResetPasswordPage from "./pages/ResetPasswordPage"; //Import the new Page
 import OrganizerLogin from "./pages/OrganizerLogin";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
+import AdminOverview from "./components/admin/AdminOverview";
+import AdminUsersManagement from "./components/admin/AdminUsersManagement";
+import AdminEventsManagement from "./components/admin/AdminEventsManagement";
+import AdminAnalytics from "./components/admin/AdminAnalytics";
+import AdminSettings from "./components/admin/AdminSettings";
 import DuplicateEvent from "./pages/DuplicateEvent";
 
 function AppContent() {
@@ -105,7 +110,13 @@ function AppContent() {
             <Route path="support-center" element={<SupportCenter />} />
             <Route path="notifications" element={<OrganizerNotifications />} />
           </Route>
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />}>
+            <Route index element={<AdminOverview />} />
+            <Route path="users" element={<AdminUsersManagement />} />
+            <Route path="events" element={<AdminEventsManagement />} />
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
           <Route
             path="/edit-profile"
             element={

@@ -15,20 +15,13 @@ import {
   FiActivity
 } from "react-icons/fi";
 import toast from "react-hot-toast";
-import { useNavigate } from "react-router-dom";
-
-// Import admin page components
-import AdminUsersManagement from "../components/admin/AdminUsersManagement";
-import AdminEventsManagement from "../components/admin/AdminEventsManagement";
-import AdminAnalytics from "../components/admin/AdminAnalytics";
-import AdminSettings from "../components/admin/AdminSettings";
-import AdminOverview from "../components/admin/AdminOverview";
+import { useNavigate, useLocation, Outlet, Link } from "react-router-dom";
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [adminUser, setAdminUser] = useState(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Check admin authentication on mount
   useEffect(() => {
@@ -63,28 +56,21 @@ export default function AdminDashboard() {
   };
 
   const sidebarItems = [
-    { id: "overview", label: "Overview", icon: FiActivity },
-    { id: "users", label: "Users Management", icon: FiUsers },
-    { id: "events", label: "Events Management", icon: FiCalendar },
-    { id: "analytics", label: "Analytics", icon: FiBarChart },
-    { id: "settings", label: "Settings", icon: FiSettings },
+    { id: "overview", label: "Overview", icon: FiActivity, path: "/admin/dashboard" },
+    { id: "users", label: "Users Management", icon: FiUsers, path: "/admin/dashboard/users" },
+    { id: "events", label: "Events Management", icon: FiCalendar, path: "/admin/dashboard/events" },
+    { id: "analytics", label: "Analytics", icon: FiBarChart, path: "/admin/dashboard/analytics" },
+    { id: "settings", label: "Settings", icon: FiSettings, path: "/admin/dashboard/settings" },
   ];
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case "overview":
-        return <AdminOverview />;
-      case "users":
-        return <AdminUsersManagement />;
-      case "events":
-        return <AdminEventsManagement />;
-      case "analytics":
-        return <AdminAnalytics />;
-      case "settings":
-        return <AdminSettings />;
-      default:
-        return <AdminOverview />;
-    }
+  const getActiveTab = () => {
+    const path = location.pathname;
+    if (path === "/admin/dashboard") return "overview";
+    if (path.includes("/users")) return "users";
+    if (path.includes("/events")) return "events";
+    if (path.includes("/analytics")) return "analytics";
+    if (path.includes("/settings")) return "settings";
+    return "overview";
   };
 
   if (!adminUser) {
@@ -114,21 +100,19 @@ export default function AdminDashboard() {
 
         <nav className="mt-8">
           {sidebarItems.map((item) => (
-            <button
+            <Link
               key={item.id}
-              onClick={() => {
-                setActiveTab(item.id);
-                setSidebarOpen(false);
-              }}
+              to={item.path}
+              onClick={() => setSidebarOpen(false)}
               className={`w-full flex items-center px-6 py-3 text-left hover:bg-gray-700 transition-colors ${
-                activeTab === item.id
+                getActiveTab() === item.id
                   ? "bg-red-600 text-white border-r-4 border-red-400"
                   : "text-gray-300 hover:text-white"
               }`}
             >
               <item.icon className="w-5 h-5 mr-3" />
               {item.label}
-            </button>
+            </Link>
           ))}
         </nav>
 
@@ -156,7 +140,7 @@ export default function AdminDashboard() {
                 <FiMenu className="w-6 h-6" />
               </button>
               <h2 className="text-xl font-semibold text-white capitalize">
-                {activeTab}
+                {sidebarItems.find(item => item.id === getActiveTab())?.label || "Dashboard"}
               </h2>
             </div>
             <div className="flex items-center space-x-4">
@@ -172,13 +156,13 @@ export default function AdminDashboard() {
         <main className="flex-1 overflow-y-auto min-w-0">
           <div className="p-4 sm:p-6 lg:p-8 max-w-full overflow-hidden">
             <motion.div
-              key={activeTab}
+              key={location.pathname}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
               className="h-full max-w-full"
             >
-              {renderContent()}
+              <Outlet />
             </motion.div>
           </div>
         </main>
