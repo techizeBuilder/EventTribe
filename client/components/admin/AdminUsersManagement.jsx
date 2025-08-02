@@ -33,7 +33,7 @@ export default function AdminUsersManagement() {
   const [editModal, setEditModal] = useState({ isOpen: false, user: null });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, user: null });
   const [createModal, setCreateModal] = useState({ isOpen: false });
-  const [earningsModal, setEarningsModal] = useState({ isOpen: false, user: null, earnings: null });
+  
   const [actionLoading, setActionLoading] = useState(false);
   
   // Form states
@@ -125,24 +125,7 @@ export default function AdminUsersManagement() {
     setCreateModal({ isOpen: true });
   };
 
-  const handleViewEarnings = async (user) => {
-    try {
-      setActionLoading(true);
-      // Fetch organization earnings for this user
-      const response = await fetch(`/api/admin/organizations/${user.id}/earnings`);
-      if (response.ok) {
-        const earningsData = await response.json();
-        setEarningsModal({ isOpen: true, user, earnings: earningsData });
-      } else {
-        toast.error("Failed to fetch organization earnings");
-      }
-    } catch (error) {
-      console.error("Error fetching organization earnings:", error);
-      toast.error("Failed to fetch organization earnings");
-    } finally {
-      setActionLoading(false);
-    }
-  };
+  
 
   const confirmDelete = async () => {
     if (!deleteModal.user) return;
@@ -456,13 +439,15 @@ export default function AdminUsersManagement() {
                       >
                         <FiTrash2 className="w-4 h-4" />
                       </button>
-                      <button 
-                        onClick={() => handleViewEarnings(user)}
-                        className="text-yellow-400 hover:text-yellow-300 p-1 rounded"
-                        title="View Organization Earnings"
-                      >
-                        <FiDollarSign className="w-4 h-4" />
-                      </button>
+                      {user.role === 'organizer' && (
+                        <button 
+                          onClick={() => window.open(`/admin/organization-earnings/${user.id}`, '_blank')}
+                          className="text-yellow-400 hover:text-yellow-300 p-1 rounded"
+                          title="View Organization Earnings"
+                        >
+                          <FiDollarSign className="w-4 h-4" />
+                        </button>
+                      )}
                       <div className="relative">
                         <button 
                           onClick={() => handleStatusChange(user, user.status === 'active' ? 'suspended' : 'active')}
@@ -918,149 +903,7 @@ export default function AdminUsersManagement() {
         </div>
       )}
 
-      {/* Organization Earnings Modal */}
-      {earningsModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-700 max-h-[90vh] overflow-hidden"
-          >
-            {/* Modal Header */}
-            <div className="relative p-6 border-b border-gray-700 bg-gradient-to-r from-green-600/10 to-blue-600/10 rounded-t-2xl">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                    <FiDollarSign className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Organization Earnings</h2>
-                    <p className="text-gray-300 text-sm">
-                      {earningsModal.user?.firstName && earningsModal.user?.lastName 
-                        ? `${earningsModal.user.firstName} ${earningsModal.user.lastName}'s Organization` 
-                        : earningsModal.user?.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setEarningsModal({ isOpen: false, user: null, earnings: null })}
-                  className="text-gray-400 hover:text-white hover:bg-gray-700 p-2 rounded-lg transition-all duration-200"
-                >
-                  <FiX className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[70vh]">
-              {earningsModal.earnings ? (
-                <div className="space-y-6">
-                  {/* Earnings Summary */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                          <FiDollarSign className="w-5 h-5 text-green-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">Total Revenue</p>
-                          <p className="text-xl font-bold text-white">
-                            ${(earningsModal.earnings.totalRevenue || 0).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                          <FiUsers className="w-5 h-5 text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">Tickets Sold</p>
-                          <p className="text-xl font-bold text-white">
-                            {(earningsModal.earnings.totalTicketsSold || 0).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-gray-700/50 rounded-xl p-4 border border-gray-600">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                          <FiEdit className="w-5 h-5 text-purple-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-400 uppercase tracking-wide">Events Created</p>
-                          <p className="text-xl font-bold text-white">
-                            {earningsModal.earnings.totalEvents || 0}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Events List */}
-                  <div className="bg-gray-700/30 rounded-xl border border-gray-600">
-                    <div className="p-4 border-b border-gray-600">
-                      <h3 className="text-lg font-semibold text-white">Event Earnings Breakdown</h3>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead className="bg-gray-700">
-                          <tr>
-                            <th className="text-left p-4 text-gray-300 font-medium">Event Name</th>
-                            <th className="text-left p-4 text-gray-300 font-medium">Revenue</th>
-                            <th className="text-left p-4 text-gray-300 font-medium">Tickets Sold</th>
-                            <th className="text-left p-4 text-gray-300 font-medium">Date</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {earningsModal.earnings.events && earningsModal.earnings.events.length > 0 ? (
-                            earningsModal.earnings.events.map((event, index) => (
-                              <tr key={index} className="border-t border-gray-700 hover:bg-gray-700/30">
-                                <td className="p-4 text-white">{event.title}</td>
-                                <td className="p-4 text-green-400 font-semibold">
-                                  ${(event.revenue || 0).toLocaleString()}
-                                </td>
-                                <td className="p-4 text-gray-300">{event.ticketsSold || 0}</td>
-                                <td className="p-4 text-gray-400">
-                                  {event.createdAt ? new Date(event.createdAt).toLocaleDateString() : 'N/A'}
-                                </td>
-                              </tr>
-                            ))
-                          ) : (
-                            <tr>
-                              <td colSpan="4" className="p-8 text-center text-gray-400">
-                                No events found for this organization
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-8">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-700 bg-gray-800/50 rounded-b-2xl">
-              <div className="flex justify-end">
-                <button
-                  onClick={() => setEarningsModal({ isOpen: false, user: null, earnings: null })}
-                  className="px-4 py-2 text-gray-300 hover:text-white bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors duration-200"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      
     </div>
   );
 }

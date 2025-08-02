@@ -47,6 +47,7 @@ import AdminEventsManagement from "./components/admin/AdminEventsManagement";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
 import AdminSettings from "./components/admin/AdminSettings";
 import DuplicateEvent from "./pages/DuplicateEvent";
+import OrganizationEarnings from "./pages/OrganizationEarnings"; // Assuming this page exists
 
 function AppContent() {
   const location = useLocation();
@@ -117,6 +118,7 @@ function AppContent() {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
+          <Route path="/admin/organization-earnings/:userId" element={<ProtectedRoute requiredRole="organizer"><OrganizationEarnings /></ProtectedRoute>} />
           <Route
             path="/edit-profile"
             element={
