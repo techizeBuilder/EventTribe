@@ -482,7 +482,7 @@ export default function AdminUsersManagement() {
             </button>
             {[...Array(totalPages)].map((_, i) => (
               <button
-                key={i + 1}
+                key={`page-${i + 1}`}
                 onClick={() => setCurrentPage(i + 1)}
                 className={`px-3 py-1 rounded ${
                   currentPage === i + 1 

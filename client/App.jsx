@@ -47,7 +47,7 @@ import AdminEventsManagement from "./components/admin/AdminEventsManagement";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
 import AdminSettings from "./components/admin/AdminSettings";
 import DuplicateEvent from "./pages/DuplicateEvent";
-import OrganizationEarnings from "./pages/OrganizationEarnings"; // Assuming this page exists
+import OrganizationEarnings from "./pages/organizer/OrganizationEarnings";
 
 function AppContent() {
   const location = useLocation();
