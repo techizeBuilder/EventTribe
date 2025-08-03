@@ -4,6 +4,7 @@
  */
 
 import { organizerStorage } from './organizerStorageService.js';
+import { ObjectId } from 'mongodb';
 
 class SampleDataService {
   constructor() {
@@ -489,6 +490,37 @@ class SampleDataService {
         }
       }
 
+      // Create sample bookings for events
+      for (const event of createdEvents) {
+        for (let i = 0; i < this.sampleAttendees.length; i++) {
+          const attendeeData = this.sampleAttendees[i];
+          const bookingData = {
+            _id: new ObjectId(),
+            bookingId: `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            paymentIntentId: `pi_${Math.random().toString(36).substr(2, 24)}`,
+            eventId: event._id.toString(),
+            eventTitle: event.title,
+            attendeeName: `${attendeeData.firstName} ${attendeeData.lastName}`,
+            attendeeEmail: attendeeData.email,
+            ticketType: event.ticketTypes[0]?.name || 'General Admission',
+            quantity: Math.floor(Math.random() * 3) + 1, // 1-3 tickets
+            ticketPrice: event.ticketTypes[0]?.price || 50,
+            totalAmount: (event.ticketTypes[0]?.price || 50) * (Math.floor(Math.random() * 3) + 1),
+            platformFee: 2.50,
+            processingFee: 1.00,
+            status: ['confirmed', 'pending', 'cancelled'][Math.floor(Math.random() * 3)],
+            paymentStatus: ['paid', 'pending', 'failed'][Math.floor(Math.random() * 3)],
+            bookingDate: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000), // Random date within last 30 days
+            createdAt: new Date(),
+            updatedAt: new Date()
+          };
+          
+          // Insert directly into MongoDB bookings collection
+          await organizerStorage.connect();
+          await organizerStorage.db.collection('bookings').insertOne(bookingData);
+        }
+      }
+
       // Create sample marketing campaigns
       for (const campaignData of this.sampleMarketingCampaigns) {
         await organizerStorage.createMarketingCampaign({
@@ -556,6 +588,7 @@ class SampleDataService {
         message: "Sample data generated successfully",
         events: createdEvents.length,
         attendees: this.sampleAttendees.length * createdEvents.length,
+        bookings: this.sampleAttendees.length * createdEvents.length,
         campaigns: this.sampleMarketingCampaigns.length,
         audience: this.sampleAudience.length,
         teamMembers: this.sampleTeamMembers.length,
