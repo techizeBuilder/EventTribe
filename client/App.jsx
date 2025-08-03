@@ -48,7 +48,8 @@ import DuplicateEvent from "./pages/DuplicateEvent";
 import OrganizationEarnings from "./pages/organizer/OrganizationEarnings";
 import Events from "./pages/organizer/Events";
 import Bookings from "./pages/organizer/Bookings";
-import BookingDetails from "./pages/organizer/BookingDetails";
+import BookingDetails from "./pages/organizer/BookingDetails';
+import Earnings from './pages/organizer/Earnings';
 import Finances from "./pages/organizer/Finances";
 import Analytics from "./pages/organizer/Analytics";
 
@@ -98,7 +99,16 @@ function AppContent() {
             <Route index element={<OrganizerHome />} />
             <Route path="events" element={<ManageEvents />} />
             <Route path="bookings" element={<Bookings />} />
-            <Route path="bookings/:bookingId" element={<BookingDetails />} />
+            <Route path="bookings/:bookingId" element={
+                <ProtectedRoute requiredRole="organizer">
+                  <BookingDetails />
+                </ProtectedRoute>
+              } />
+              <Route path="/organizer/earnings" element={
+                <ProtectedRoute requiredRole="organizer">
+                  <Earnings />
+                </ProtectedRoute>
+              } />
             <Route path="users" element={<ManageUser />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="audience" element={<Audience />} />

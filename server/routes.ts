@@ -854,6 +854,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/organizer/earnings - Get organizer's earnings data
+  app.get('/api/organizer/earnings', authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const organizerId = req.user._id || req.user.id;
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      // Fetch user's events
+      const eventsCollection = mongoStorage.db.collection('events');
+      let userEvents = await eventsCollection.find({ 
+        organizerId: organizerId 
+      }).toArray();
+
+      // If no events found with string ID, try ObjectId
+      if (userEvents.length === 0 && ObjectId.isValid(organizerId)) {
+        userEvents = await eventsCollection.find({ 
+          organizerId: new ObjectId(organizerId)
+        }).toArray();
+      }
+
+      console.log(`Found ${userEvents.length} events for organizer ${organizerId}`);
+
+      // Fetch bookings for these events
+      let bookings = [];
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+
+      if (userEvents.length > 0) {
+        const eventIds = userEvents.map(event => event._id.toString());
+        const eventObjectIds = userEvents.map(event => event._id);
+
+        bookings = await bookingsCollection.find({
+          $or: [
+            { eventId: { $in: eventIds } },
+            { eventId: { $in: eventObjectIds } }
+          ]
+        }).toArray();
+
+        console.log(`Found ${bookings.length} bookings for organizer events`);
+      }
+
+      // Calculate earnings per event
+      const eventEarnings = userEvents.map(event => {
+        const eventBookings = bookings.filter(booking => {
+          const bookingEventId = booking.eventId?.toString();
+          const eventId = event._id.toString();
+          return bookingEventId === eventId;
+        });
+
+        const revenue = eventBookings.reduce((total, booking) => {
+          return total + (booking.totalAmount || 0);
+        }, 0);
+
+        let ticketsSold = 0;
+        eventBookings.forEach(booking => {
+          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+            ticketsSold += booking.ticketDetails.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0);
+          } else if (booking.quantity) {
+            ticketsSold += booking.quantity;
+          } else {
+            ticketsSold += 1;
+          }
+        });
+
+        return {
+          _id: event._id,
+          title: event.title,
+          revenue: revenue,
+          ticketsSold: ticketsSold,
+          bookingsCount: eventBookings.length,
+          createdAt: event.createdAt
+        };
+      });
+
+      // Calculate totals
+      const totalRevenue = eventEarnings.reduce((total, event) => total + event.revenue, 0);
+      const totalTicketsSold = eventEarnings.reduce((total, event) => total + event.ticketsSold, 0);
+      const totalBookings = bookings.length;
+      const totalEvents = userEvents.length;
+
+      const earningsData = {
+        totalRevenue,
+        totalTicketsSold,
+        totalBookings,
+        totalEvents,
+        events: eventEarnings
+      };
+
+      console.log('Organizer earnings data:', earningsData);
+      res.json(earningsData);
+    } catch (error) {
+      console.error('Organizer earnings fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch earnings data' });
+    }
+  });
+
   // GET /api/organizer/events - Get organizer's events
   app.get('/api/organizer/events', authenticateToken, requireRole(['organizer']), async (req, res) => {
     try {
