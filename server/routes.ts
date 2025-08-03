@@ -765,49 +765,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/organizer/bookings - Get all bookings for organizer's events
-  app.get('/api/organizer/bookings', authenticateToken, requireRole(['organizer']), async (req, res) => {
-    try {
-      const organizerId = req.user._id || req.user.id;
-
-      await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-
-      // First, get all events created by this organizer
-      const eventsCollection = mongoStorage.db.collection('events');
-      const organizerEvents = await eventsCollection.find({ 
-        organizerId: organizerId 
-      }).toArray();
-
-      if (organizerEvents.length === 0) {
-        return res.json([]);
-      }
-
-      const eventIds = organizerEvents.map(event => event._id.toString());
-
-      // Get all bookings for these events
-      const bookingsCollection = mongoStorage.db.collection('bookings');
-      const bookings = await bookingsCollection.find({
-        eventId: { $in: eventIds }
-      }).sort({ createdAt: -1 }).toArray();
-
-      // Enrich bookings with event information
-      const enrichedBookings = bookings.map(booking => {
-        const event = organizerEvents.find(e => e._id.toString() === booking.eventId);
-        return {
-          ...booking,
-          eventTitle: event?.title || 'Unknown Event',
-          eventDate: event?.date,
-          eventLocation: event?.location
-        };
-      });
-
-      res.json(enrichedBookings);
-    } catch (error) {
-      console.error('Get organizer bookings error:', error);
-      res.status(500).json({ message: 'Failed to fetch bookings' });
-    }
-  });
+  // DISABLED - Use enhanced routes instead
+  // app.get('/api/organizer/bookings', authenticateToken, requireRole(['organizer']), async (req, res) => {
+  // DISABLED - Conflicts with enhanced routes system
+  // });
 
   // GET /api/organizer/bookings/:bookingId - Get specific booking details
   app.get('/api/organizer/bookings/:bookingId', authenticateToken, requireRole(['organizer']), async (req, res) => {

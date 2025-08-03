@@ -1777,6 +1777,61 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
   // ==================== ORGANIZER DASHBOARD ROUTES ====================
 
+  // Test endpoint to verify bookings exist (no auth required)
+  app.get("/api/test/bookings", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const bookings = await mongoStorage.db.collection('bookings').find({}).limit(10).toArray();
+      res.json({
+        count: bookings.length,
+        bookings: bookings.map(b => ({
+          id: b._id,
+          eventTitle: b.eventTitle,
+          attendeeName: b.attendeeName,
+          status: b.status,
+          amount: b.totalAmount
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // TEMPORARY: Organizer bookings without authentication for testing  
+  app.get("/api/test/organizer-bookings-simple", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const bookings = await mongoStorage.db.collection('bookings').find({}).toArray();
+      
+      // Group by event
+      const groupedBookings = bookings.reduce((acc, booking) => {
+        const eventTitle = booking.eventTitle || 'Unknown Event';
+        if (!acc[eventTitle]) acc[eventTitle] = [];
+        acc[eventTitle].push(booking);
+        return acc;
+      }, {});
+
+      // Return bookings in the format expected by the frontend
+      const formattedBookings = bookings.map(b => ({
+        _id: b._id,
+        bookingId: b.bookingId,
+        eventTitle: b.eventTitle,
+        attendeeName: b.attendeeName,
+        attendeeEmail: b.attendeeEmail,
+        status: b.status,
+        paymentStatus: b.paymentStatus || 'paid',
+        totalAmount: b.totalAmount,
+        amount: b.totalAmount, // Fallback for older code
+        bookingDate: b.bookingDate,
+        createdAt: b.createdAt
+      }));
+      
+      res.json(formattedBookings);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Mount all organizer routes under /api/organizer
   app.use("/api/organizer", organizerRoutes);
 

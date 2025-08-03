@@ -6,11 +6,16 @@ export const authenticateToken = async (req, res, next) => {
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
+      console.log('No token provided in request');
       return res.status(401).json({ message: 'Access token required' });
     }
 
+    console.log('Verifying token:', token.substring(0, 20) + '...');
     const decoded = enhancedAuthService.verifyAccessToken(token);
+    console.log('Token decoded successfully for user:', decoded.userId);
+    
     const user = await enhancedAuthService.getUserById(decoded.userId);
+    console.log('User found:', user ? user.email : 'No user');
     
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
