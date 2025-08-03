@@ -7,7 +7,7 @@ import { useCart } from '../hooks/useCart';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_placeholder');
 
 const CARD_ELEMENT_OPTIONS = {
   style: {
@@ -27,7 +27,7 @@ const CARD_ELEMENT_OPTIONS = {
 function MultiEventPaymentForm({ onSuccess, onClose }) {
   const stripe = useStripe();
   const elements = useElements();
-  const { getCartSummary, getTotalPrice } = useCart();
+  const { getCartSummary, getTotalPrice, clearCart } = useCart();
   const { userEmail, userName } = useAuth();
   const [loading, setLoading] = useState(false);
   const [cardErrors, setCardErrors] = useState({});

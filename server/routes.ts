@@ -212,6 +212,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid items" });
       }
 
+      // Connect to MongoDB to validate events
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      // Validate all events exist (but don't fail if some don't exist for cart flexibility)
+      for (const item of items) {
+        if (item.eventId) {
+          try {
+            let event = null;
+            
+            // Try different query formats
+            if (ObjectId.isValid(item.eventId)) {
+              event = await mongoStorage.db.collection("events").findOne({ 
+                _id: new ObjectId(item.eventId) 
+              });
+            }
+            
+            if (!event) {
+              event = await mongoStorage.db.collection("events").findOne({ 
+                _id: item.eventId 
+              });
+            }
+            
+            if (!event) {
+              event = await mongoStorage.db.collection("events").findOne({ 
+                id: item.eventId 
+              });
+            }
+            
+            console.log(`Event validation for ${item.eventId}:`, event ? 'Found' : 'Not found');
+            
+            // Don't fail the payment, just log if event not found
+            if (!event) {
+              console.warn(`Event ${item.eventId} not found in database, proceeding with payment`);
+            }
+          } catch (eventError) {
+            console.warn(`Error validating event ${item.eventId}:`, eventError);
+          }
+        }
+      }
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: "usd",
