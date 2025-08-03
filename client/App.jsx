@@ -48,6 +48,11 @@ import AdminAnalytics from "./components/admin/AdminAnalytics";
 import AdminSettings from "./components/admin/AdminSettings";
 import DuplicateEvent from "./pages/DuplicateEvent";
 import OrganizationEarnings from "./pages/organizer/OrganizationEarnings";
+import Events from "./pages/organizer/Events";
+import Bookings from "./pages/organizer/Bookings";
+import BookingDetails from "./pages/organizer/BookingDetails";
+import Finances from "./pages/organizer/Finances";
+import Analytics from "./pages/organizer/Analytics";
 
 function AppContent() {
   const location = useLocation();
@@ -94,6 +99,8 @@ function AppContent() {
           >
             <Route index element={<OrganizerHome />} />
             <Route path="events" element={<ManageEvents />} />
+            <Route path="bookings" element={<Bookings />} />
+            <Route path="bookings/:bookingId" element={<BookingDetails />} />
             <Route path="users" element={<ManageUser />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="audience" element={<Audience />} />

@@ -33,6 +33,11 @@ const navItems = [
     label: "My Events",
     icon: <FiCalendar />,
   },
+  {
+    to: "/organizer/bookings",
+    label: "Bookings",
+    icon: <FiUsers />,
+  },
   // {
   //   label: "Marketing",
   //   icon: <FiUsers />,

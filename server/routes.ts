@@ -208,7 +208,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fetch user's events with multiple query variations
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       // Try different organizerId formats
       let userEvents = await eventsCollection.find({ 
         organizerId: userId 
@@ -234,7 +234,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let bookings = [];
       const bookingsCollection = mongoStorage.db.collection('bookings');
       const attendeesCollection = mongoStorage.db.collection('attendees');
-      
+
       if (userEvents.length > 0) {
         const eventIds = userEvents.map(event => event._id.toString());
         const eventObjectIds = userEvents.map(event => event._id);
@@ -380,24 +380,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await mongoStorage.connect();
       const { ObjectId } = await import('mongodb');
-      
+
       const eventsCollection = mongoStorage.db.collection('events');
       const bookingsCollection = mongoStorage.db.collection('bookings');
-      
+
       // Get all events
       const events = await eventsCollection.find({}).toArray();
-      
+
       // Create sample bookings for each event
       const sampleBookings = [];
-      
+
       for (const event of events) {
         // Create 2-5 random bookings per event
         const bookingCount = Math.floor(Math.random() * 4) + 2;
-        
+
         for (let i = 0; i < bookingCount; i++) {
           const ticketPrice = Math.floor(Math.random() * 200) + 50; // $50-$250
           const quantity = Math.floor(Math.random() * 3) + 1; // 1-3 tickets
-          
+
           sampleBookings.push({
             _id: new ObjectId(),
             eventId: event._id.toString(),
@@ -418,12 +418,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       if (sampleBookings.length > 0) {
         await bookingsCollection.insertMany(sampleBookings);
         console.log(`Created ${sampleBookings.length} sample bookings`);
       }
-      
+
       res.json({ 
         message: `Created ${sampleBookings.length} sample bookings`,
         bookings: sampleBookings.length
@@ -431,6 +431,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error creating sample bookings:', error);
       res.status(500).json({ message: 'Failed to create sample bookings' });
+    }
+  });
+
+  // GET /api/organizer/bookings - Get all bookings for organizer's events
+  app.get('/api/organizer/bookings', authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const organizerId = req.user._id || req.user.id;
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      // First, get all events created by this organizer
+      const eventsCollection = mongoStorage.db.collection('events');
+      const organizerEvents = await eventsCollection.find({ 
+        organizerId: organizerId 
+      }).toArray();
+
+      if (organizerEvents.length === 0) {
+        return res.json([]);
+      }
+
+      const eventIds = organizerEvents.map(event => event._id.toString());
+
+      // Get all bookings for these events
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const bookings = await bookingsCollection.find({
+        eventId: { $in: eventIds }
+      }).sort({ createdAt: -1 }).toArray();
+
+      // Enrich bookings with event information
+      const enrichedBookings = bookings.map(booking => {
+        const event = organizerEvents.find(e => e._id.toString() === booking.eventId);
+        return {
+          ...booking,
+          eventTitle: event?.title || 'Unknown Event',
+          eventDate: event?.date,
+          eventLocation: event?.location
+        };
+      });
+
+      res.json(enrichedBookings);
+    } catch (error) {
+      console.error('Get organizer bookings error:', error);
+      res.status(500).json({ message: 'Failed to fetch bookings' });
+    }
+  });
+
+  // GET /api/organizer/bookings/:bookingId - Get specific booking details
+  app.get('/api/organizer/bookings/:bookingId', authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const organizerId = req.user._id || req.user.id;
+      const { bookingId } = req.params;
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      // Get the booking
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const booking = await bookingsCollection.findOne({
+        _id: new ObjectId(bookingId)
+      });
+
+      if (!booking) {
+        return res.status(404).json({ message: 'Booking not found' });
+      }
+
+      // Verify that this booking belongs to an event created by this organizer
+      const eventsCollection = mongoStorage.db.collection('events');
+      const event = await eventsCollection.findOne({
+        _id: new ObjectId(booking.eventId),
+        organizerId: organizerId
+      });
+
+      if (!event) {
+        return res.status(403).json({ message: 'Access denied to this booking' });
+      }
+
+      // Enrich booking with event information
+      const enrichedBooking = {
+        ...booking,
+        eventTitle: event.title,
+        eventDate: event.date,
+        eventLocation: event.location
+      };
+
+      res.json(enrichedBooking);
+    } catch (error) {
+      console.error('Get booking details error:', error);
+      res.status(500).json({ message: 'Failed to fetch booking details' });
+    }
+  });
+
+  // GET /api/organizer/events - Get organizer's events
+  app.get('/api/organizer/events', authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const organizerId = req.user._id || req.user.id;
+
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+      const events = await eventsCollection.find({ organizerId: organizerId }).toArray();
+
+      res.json(events);
+    } catch (error) {
+      console.error('Get organizer events error:', error);
+      res.status(500).json({ message: 'Failed to fetch events' });
+    }
+  });
+
+  // POST /api/organizer/events - Create a new event
+  app.post('/api/organizer/events', authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const organizerId = req.user._id || req.user.id;
+      const eventData = { ...req.body, organizerId: organizerId };
+
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+      const result = await eventsCollection.insertOne(eventData);
+
+      res.status(201).json({ message: 'Event created', eventId: result.insertedId });
+    } catch (error) {
+      console.error('Create event error:', error);
+      res.status(500).json({ message: 'Failed to create event' });
     }
   });
 
