@@ -29,18 +29,38 @@ export default function OrganizationEarnings() {
       setLoading(true);
       
       // Fetch user details
-      const userResponse = await fetch(`/api/admin/users/${userId}`);
+      const userResponse = await fetch(`/api/admin/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (userResponse.ok) {
         const userData = await userResponse.json();
         setUser(userData);
+        console.log('User data fetched:', userData);
+      } else {
+        console.error('Failed to fetch user data:', userResponse.status);
+        toast.error("Failed to fetch user details");
       }
 
       // Fetch organization earnings
-      const earningsResponse = await fetch(`/api/admin/organizations/${userId}/earnings`);
+      const earningsResponse = await fetch(`/api/admin/organizations/${userId}/earnings`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
       if (earningsResponse.ok) {
         const earningsData = await earningsResponse.json();
         setEarnings(earningsData);
+        console.log('Earnings data fetched:', earningsData);
       } else {
+        console.error('Failed to fetch earnings data:', earningsResponse.status);
+        const errorText = await earningsResponse.text();
+        console.error('Error response:', errorText);
         toast.error("Failed to fetch organization earnings");
       }
     } catch (error) {
@@ -53,8 +73,9 @@ export default function OrganizationEarnings() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
+        <span className="ml-3 text-gray-400">Loading earnings data...</span>
       </div>
     );
   }

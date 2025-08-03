@@ -197,6 +197,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/admin/organizations/:userId/earnings
+  app.get('/api/admin/organizations/:userId/earnings', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Connect to MongoDB
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      // Fetch user's events
+      const eventsCollection = mongoStorage.db.collection('events');
+      const userEvents = await eventsCollection.find({ 
+        organizerId: userId 
+      }).toArray();
+
+      // Fetch bookings for these events
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const eventIds = userEvents.map(event => event._id.toString());
+
+      const bookings = await bookingsCollection.find({
+        eventId: { $in: eventIds },
+        status: 'confirmed'
+      }).toArray();
+
+      // Calculate earnings per event
+      const eventEarnings = userEvents.map(event => {
+        const eventBookings = bookings.filter(booking => 
+          booking.eventId === event._id.toString()
+        );
+
+        const revenue = eventBookings.reduce((total, booking) => {
+          return total + (booking.totalAmount || 0);
+        }, 0);
+
+        const ticketsSold = eventBookings.reduce((total, booking) => {
+          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+            return total + booking.ticketDetails.reduce((sum, ticket) => sum + ticket.quantity, 0);
+          }
+          return total + 1; // Default to 1 ticket if no details
+        }, 0);
+
+        return {
+          _id: event._id,
+          title: event.title,
+          revenue: revenue,
+          ticketsSold: ticketsSold,
+          createdAt: event.createdAt
+        };
+      });
+
+      // Calculate totals
+      const totalRevenue = eventEarnings.reduce((total, event) => total + event.revenue, 0);
+      const totalTicketsSold = eventEarnings.reduce((total, event) => total + event.ticketsSold, 0);
+      const totalEvents = userEvents.length;
+
+      const earningsData = {
+        totalRevenue,
+        totalTicketsSold,
+        totalEvents,
+        events: eventEarnings
+      };
+
+      res.json(earningsData);
+    } catch (error) {
+      console.error('Earnings fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch earnings data' });
+    }
+  });
+
+  // GET /api/admin/users/:id
+  app.get('/api/admin/users/:id', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      const usersCollection = mongoStorage.db.collection('users');
+
+      // Handle both ObjectId and string formats
+      let query;
+      if (ObjectId.isValid(id)) {
+        query = { _id: new ObjectId(id) };
+      } else {
+        query = { id: id };
+      }
+
+      const user = await usersCollection.findOne(query);
+
+      if (user) {
+        // Remove sensitive data
+        const { password, ...userWithoutPassword } = user;
+        res.json({
+          id: user._id?.toString() || user.id,
+          ...userWithoutPassword
+        });
+      } else {
+        res.status(404).json({ message: 'User not found' });
+      }
+    } catch (error) {
+      console.error('User fetch error:', error);
+      res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
