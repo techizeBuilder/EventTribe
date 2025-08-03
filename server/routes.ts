@@ -641,6 +641,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // POST /api/create-dummy-bookings-for-org - Create dummy bookings for specific organization
+  app.post('/api/create-dummy-bookings-for-org', async (req, res) => {
+    try {
+      const { organizerEmail } = req.body;
+      
+      if (!organizerEmail) {
+        return res.status(400).json({ message: 'Organizer email is required' });
+      }
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      const eventsCollection = mongoStorage.db.collection('events');
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const usersCollection = mongoStorage.db.collection('users');
+
+      // Find the organizer
+      const organizer = await usersCollection.findOne({ email: organizerEmail });
+      
+      if (!organizer) {
+        return res.status(404).json({ message: 'Organizer not found' });
+      }
+
+      const organizerId = organizer._id?.toString() || organizer.id;
+
+      // Get events for this organizer
+      let organizerEvents = await eventsCollection.find({ 
+        organizerId: organizerId 
+      }).toArray();
+
+      // If no events found with string ID, try ObjectId
+      if (organizerEvents.length === 0 && ObjectId.isValid(organizerId)) {
+        organizerEvents = await eventsCollection.find({ 
+          organizerId: new ObjectId(organizerId)
+        }).toArray();
+      }
+
+      if (organizerEvents.length === 0) {
+        return res.status(404).json({ message: 'No events found for this organizer' });
+      }
+
+      console.log(`Found ${organizerEvents.length} events for organizer ${organizerEmail}`);
+
+      // Create dummy bookings for each event
+      const dummyBookings = [];
+      const customerNames = [
+        'John Smith', 'Sarah Johnson', 'Michael Davis', 'Emily Wilson', 
+        'David Brown', 'Jessica Miller', 'Chris Anderson', 'Amanda Taylor',
+        'Ryan Martinez', 'Ashley Thomas', 'Kevin White', 'Nicole Garcia'
+      ];
+
+      for (const event of organizerEvents) {
+        // Create 3-8 random bookings per event
+        const bookingCount = Math.floor(Math.random() * 6) + 3;
+
+        for (let i = 0; i < bookingCount; i++) {
+          const customerName = customerNames[Math.floor(Math.random() * customerNames.length)];
+          const nameParts = customerName.split(' ');
+          const ticketTypes = ['General Admission', 'VIP', 'Early Bird', 'Standard'];
+          const ticketType = ticketTypes[Math.floor(Math.random() * ticketTypes.length)];
+          const ticketPrice = Math.floor(Math.random() * 300) + 25; // $25-$325
+          const quantity = Math.floor(Math.random() * 4) + 1; // 1-4 tickets
+          const totalAmount = ticketPrice * quantity;
+
+          const booking = {
+            _id: new ObjectId(),
+            bookingId: `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            paymentIntentId: `pi_${Math.random().toString(36).substr(2, 24)}`,
+            eventId: event._id.toString(),
+            eventTitle: event.title,
+            ticketDetails: [{
+              type: ticketType,
+              price: ticketPrice,
+              quantity: quantity,
+              name: ticketType
+            }],
+            userEmail: `${nameParts[0].toLowerCase()}.${nameParts[1].toLowerCase()}@example.com`,
+            userName: customerName,
+            totalAmount: totalAmount,
+            currency: 'usd',
+            status: 'confirmed',
+            paymentStatus: 'completed',
+            bookingDate: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000), // Random date within last 30 days
+            createdAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000),
+            attendeeInfo: {
+              firstName: nameParts[0],
+              lastName: nameParts[1],
+              email: `${nameParts[0].toLowerCase()}.${nameParts[1].toLowerCase()}@example.com`,
+              phone: `+1-555-${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
+            }
+          };
+
+          dummyBookings.push(booking);
+        }
+      }
+
+      if (dummyBookings.length > 0) {
+        await bookingsCollection.insertMany(dummyBookings);
+        console.log(`Created ${dummyBookings.length} dummy bookings for ${organizerEmail}`);
+      }
+
+      // Calculate total earnings
+      const totalEarnings = dummyBookings.reduce((sum, booking) => sum + booking.totalAmount, 0);
+      const totalBookings = dummyBookings.length;
+
+      res.json({ 
+        message: `Successfully created ${totalBookings} dummy bookings for ${organizerEmail}`,
+        bookings: totalBookings,
+        totalEarnings: totalEarnings,
+        events: organizerEvents.length,
+        details: dummyBookings.map(b => ({
+          bookingId: b.bookingId,
+          eventTitle: b.eventTitle,
+          customerName: b.userName,
+          amount: b.totalAmount,
+          tickets: b.ticketDetails[0].quantity
+        }))
+      });
+    } catch (error) {
+      console.error('Error creating dummy bookings:', error);
+      res.status(500).json({ message: 'Failed to create dummy bookings', error: error.message });
+    }
+  });
+
   // GET /api/organizer/bookings - Get all bookings for organizer's events
   app.get('/api/organizer/bookings', authenticateToken, requireRole(['organizer']), async (req, res) => {
     try {
