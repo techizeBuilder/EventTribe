@@ -206,37 +206,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await mongoStorage.connect();
       const { ObjectId } = await import('mongodb');
 
-      // Fetch user's events
+      // Fetch user's events with multiple query variations
       const eventsCollection = mongoStorage.db.collection('events');
-      const userEvents = await eventsCollection.find({ 
+      
+      // Try different organizerId formats
+      let userEvents = await eventsCollection.find({ 
         organizerId: userId 
       }).toArray();
 
-      // Fetch bookings for these events
-      const bookingsCollection = mongoStorage.db.collection('bookings');
-      const eventIds = userEvents.map(event => event._id.toString());
+      // If no events found with string ID, try ObjectId
+      if (userEvents.length === 0 && ObjectId.isValid(userId)) {
+        userEvents = await eventsCollection.find({ 
+          organizerId: new ObjectId(userId)
+        }).toArray();
+      }
 
-      const bookings = await bookingsCollection.find({
-        eventId: { $in: eventIds },
-        status: 'confirmed'
-      }).toArray();
+      // Also try with the id field
+      if (userEvents.length === 0) {
+        userEvents = await eventsCollection.find({ 
+          id: userId 
+        }).toArray();
+      }
+
+      console.log(`Found ${userEvents.length} events for user ${userId}`);
+
+      // Fetch bookings for these events with multiple collection names
+      let bookings = [];
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const attendeesCollection = mongoStorage.db.collection('attendees');
+      
+      if (userEvents.length > 0) {
+        const eventIds = userEvents.map(event => event._id.toString());
+        const eventObjectIds = userEvents.map(event => event._id);
+
+        // Try bookings collection first
+        bookings = await bookingsCollection.find({
+          $or: [
+            { eventId: { $in: eventIds } },
+            { eventId: { $in: eventObjectIds } }
+          ]
+        }).toArray();
+
+        console.log(`Found ${bookings.length} bookings in bookings collection`);
+
+        // If no bookings found, try attendees collection
+        if (bookings.length === 0) {
+          const attendees = await attendeesCollection.find({
+            $or: [
+              { eventId: { $in: eventIds } },
+              { eventId: { $in: eventObjectIds } }
+            ]
+          }).toArray();
+
+          // Convert attendees to booking format
+          bookings = attendees.map(attendee => ({
+            eventId: attendee.eventId,
+            totalAmount: attendee.totalAmount || attendee.ticketPrice || 0,
+            ticketDetails: attendee.quantity ? [{ quantity: attendee.quantity }] : null,
+            status: attendee.status || 'confirmed'
+          }));
+
+          console.log(`Found ${attendees.length} attendees, converted to bookings`);
+        }
+
+        // Also check for sample bookings data
+        if (bookings.length === 0) {
+          const sampleBookings = await mongoStorage.db.collection('sample_bookings').find({
+            $or: [
+              { eventId: { $in: eventIds } },
+              { eventId: { $in: eventObjectIds } }
+            ]
+          }).toArray();
+
+          if (sampleBookings.length > 0) {
+            bookings = sampleBookings;
+            console.log(`Found ${sampleBookings.length} sample bookings`);
+          }
+        }
+      }
 
       // Calculate earnings per event
       const eventEarnings = userEvents.map(event => {
-        const eventBookings = bookings.filter(booking => 
-          booking.eventId === event._id.toString()
-        );
+        const eventBookings = bookings.filter(booking => {
+          const bookingEventId = booking.eventId?.toString();
+          const eventId = event._id.toString();
+          return bookingEventId === eventId;
+        });
 
         const revenue = eventBookings.reduce((total, booking) => {
           return total + (booking.totalAmount || 0);
         }, 0);
 
-        const ticketsSold = eventBookings.reduce((total, booking) => {
+        let ticketsSold = 0;
+        eventBookings.forEach(booking => {
           if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
-            return total + booking.ticketDetails.reduce((sum, ticket) => sum + ticket.quantity, 0);
+            ticketsSold += booking.ticketDetails.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0);
+          } else if (booking.quantity) {
+            ticketsSold += booking.quantity;
+          } else {
+            ticketsSold += 1; // Default to 1 ticket if no details
           }
-          return total + 1; // Default to 1 ticket if no details
-        }, 0);
+        });
+
+        console.log(`Event ${event.title}: ${eventBookings.length} bookings, $${revenue} revenue, ${ticketsSold} tickets sold`);
 
         return {
           _id: event._id,
@@ -259,6 +331,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         events: eventEarnings
       };
 
+      console.log('Final earnings data:', earningsData);
       res.json(earningsData);
     } catch (error) {
       console.error('Earnings fetch error:', error);
@@ -299,6 +372,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('User fetch error:', error);
       res.status(500).json({ message: 'Failed to fetch user' });
+    }
+  });
+
+  // POST /api/admin/create-sample-bookings - for testing earnings
+  app.post('/api/admin/create-sample-bookings', authenticateToken, requireRole(['admin']), async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+      
+      const eventsCollection = mongoStorage.db.collection('events');
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      
+      // Get all events
+      const events = await eventsCollection.find({}).toArray();
+      
+      // Create sample bookings for each event
+      const sampleBookings = [];
+      
+      for (const event of events) {
+        // Create 2-5 random bookings per event
+        const bookingCount = Math.floor(Math.random() * 4) + 2;
+        
+        for (let i = 0; i < bookingCount; i++) {
+          const ticketPrice = Math.floor(Math.random() * 200) + 50; // $50-$250
+          const quantity = Math.floor(Math.random() * 3) + 1; // 1-3 tickets
+          
+          sampleBookings.push({
+            _id: new ObjectId(),
+            eventId: event._id.toString(),
+            userId: new ObjectId(),
+            totalAmount: ticketPrice * quantity,
+            ticketDetails: [{ 
+              type: 'General',
+              price: ticketPrice,
+              quantity: quantity 
+            }],
+            status: 'confirmed',
+            createdAt: new Date(),
+            attendeeInfo: {
+              firstName: `User${i + 1}`,
+              lastName: 'Test',
+              email: `user${i + 1}@example.com`
+            }
+          });
+        }
+      }
+      
+      if (sampleBookings.length > 0) {
+        await bookingsCollection.insertMany(sampleBookings);
+        console.log(`Created ${sampleBookings.length} sample bookings`);
+      }
+      
+      res.json({ 
+        message: `Created ${sampleBookings.length} sample bookings`,
+        bookings: sampleBookings.length
+      });
+    } catch (error) {
+      console.error('Error creating sample bookings:', error);
+      res.status(500).json({ message: 'Failed to create sample bookings' });
     }
   });
 
