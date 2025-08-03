@@ -314,13 +314,6 @@ export default function AdminUsersManagement() {
           <p className="text-gray-400 mt-1">Manage all platform users</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button 
-            onClick={handleCreateUser}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
-          >
-            <FiUserPlus className="w-4 h-4" />
-            <span>Add User</span>
-          </button>
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
             <FiDownload className="w-4 h-4" />
             <span>Export</span>

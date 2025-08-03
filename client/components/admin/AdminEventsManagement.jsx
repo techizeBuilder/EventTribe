@@ -265,10 +265,6 @@ export default function AdminEventsManagement() {
           <p className="text-gray-400 mt-1">Manage all platform events</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
-            <FiPlus className="w-4 h-4" />
-            <span>Add Event</span>
-          </button>
           <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
             <FiDownload className="w-4 h-4" />
             <span>Export</span>
