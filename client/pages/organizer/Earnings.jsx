@@ -1,14 +1,12 @@
-
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
 import { 
   FiDollarSign, 
-  FiUsers, 
+  FiTrendingUp, 
   FiCalendar, 
-  FiTrendingUp,
+  FiUsers,
   FiRefreshCw,
-  FiBarChart,
-  FiEye
+  FiBarChart2,
+  FiCreditCard
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -23,14 +21,14 @@ export default function Earnings() {
   const fetchEarnings = async () => {
     try {
       setLoading(true);
-      
+
       const response = await fetch('/api/organizer/earnings', {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const earningsData = await response.json();
         setEarnings(earningsData);
@@ -70,14 +68,16 @@ export default function Earnings() {
               <p className="text-gray-300">Track your revenue and event performance</p>
             </div>
           </div>
-          
+
+          <div className="flex gap-3">
           <button
             onClick={fetchEarnings}
-            className="flex items-center space-x-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors"
+            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
           >
             <FiRefreshCw className="w-4 h-4" />
-            <span>Refresh</span>
+            Refresh
           </button>
+        </div>
         </div>
       </header>
 
@@ -113,7 +113,7 @@ export default function Earnings() {
                   <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                     <FiUsers className="w-5 h-5 text-blue-400" />
                   </div>
-                  <FiBarChart className="w-5 h-5 text-blue-400" />
+                  <FiBarChart2 className="w-5 h-5 text-blue-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {earnings.totalTicketsSold || 0}
@@ -131,7 +131,7 @@ export default function Earnings() {
                   <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                     <FiCalendar className="w-5 h-5 text-purple-400" />
                   </div>
-                  <FiEye className="w-5 h-5 text-purple-400" />
+                  <FiCreditCard className="w-5 h-5 text-purple-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {earnings.totalBookings || 0}
@@ -149,7 +149,7 @@ export default function Earnings() {
                   <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
                     <FiCalendar className="w-5 h-5 text-orange-400" />
                   </div>
-                  <FiBarChart className="w-5 h-5 text-orange-400" />
+                  <FiBarChart2 className="w-5 h-5 text-orange-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {earnings.totalEvents || 0}
@@ -166,7 +166,7 @@ export default function Earnings() {
               className="bg-gray-900 border border-gray-700 rounded-xl p-6"
             >
               <h3 className="text-lg font-semibold text-white mb-6">Event Performance</h3>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -218,7 +218,7 @@ export default function Earnings() {
                         <td colSpan="5" className="text-center py-8">
                           <div className="flex flex-col items-center justify-center">
                             <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                              <FiBarChart className="w-8 h-8 text-gray-500" />
+                              <FiBarChart2 className="w-8 h-8 text-gray-500" />
                             </div>
                             <p className="text-gray-400 text-lg">No events found</p>
                             <p className="text-gray-500 text-sm">Create your first event to start tracking earnings</p>

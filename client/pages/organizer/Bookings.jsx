@@ -42,6 +42,7 @@ export default function Bookings() {
 
       if (response.ok) {
         const data = await response.json();
+        console.log("Fetched bookings:", data);
         setBookings(data);
       } else {
         toast.error("Failed to fetch bookings");

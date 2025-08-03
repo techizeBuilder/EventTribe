@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -9,7 +8,8 @@ import {
   FiArrowLeft,
   FiTrendingUp,
   FiCalendar,
-  FiPieChart
+  FiPieChart,
+  FiRefreshCw
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 
@@ -24,36 +24,11 @@ export default function OrganizationEarnings() {
     fetchUserAndEarnings();
   }, [userId]);
 
-  const createSampleBookings = async () => {
-    try {
-      toast.loading("Creating sample bookings...");
-      
-      const response = await fetch('/api/admin/create-sample-bookings', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        toast.success(`Created ${result.bookings} sample bookings`);
-        // Refresh earnings data
-        fetchUserAndEarnings();
-      } else {
-        toast.error("Failed to create sample bookings");
-      }
-    } catch (error) {
-      console.error("Error creating sample bookings:", error);
-      toast.error("Failed to create sample bookings");
-    }
-  };
 
   const fetchUserAndEarnings = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch user details
       const userResponse = await fetch(`/api/admin/users/${userId}`, {
         headers: {
@@ -61,7 +36,7 @@ export default function OrganizationEarnings() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (userResponse.ok) {
         const userData = await userResponse.json();
         setUser(userData);
@@ -78,7 +53,7 @@ export default function OrganizationEarnings() {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (earningsResponse.ok) {
         const earningsData = await earningsResponse.json();
         setEarnings(earningsData);
@@ -135,20 +110,15 @@ export default function OrganizationEarnings() {
               </div>
             </div>
           </div>
-          
+
           {/* Debug Panel */}
           <div className="flex items-center space-x-2">
             <button
-              onClick={createSampleBookings}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-            >
-              Create Sample Bookings
-            </button>
-            <button
               onClick={fetchUserAndEarnings}
-              className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+              className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
             >
-              Refresh Data
+              <FiRefreshCw className="w-4 h-4" />
+              <span>Refresh</span>
             </button>
           </div>
         </div>
@@ -247,7 +217,7 @@ export default function OrganizationEarnings() {
                   <h2 className="text-xl font-bold text-white">Event Earnings Breakdown</h2>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-700">
