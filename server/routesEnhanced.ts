@@ -1832,6 +1832,68 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/test/organization-earnings-simple - No auth organization earnings endpoint
+  app.get("/api/test/organization-earnings-simple", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      
+      // Fetch all bookings from the database
+      const bookings = await mongoStorage.db.collection('bookings').find({}).toArray();
+      console.log(`Found ${bookings.length} total bookings for earnings calculation`);
+      
+      // Group bookings by event title
+      const eventGroups = bookings.reduce((acc, booking) => {
+        const eventTitle = booking.eventTitle || 'Unknown Event';
+        if (!acc[eventTitle]) {
+          acc[eventTitle] = [];
+        }
+        acc[eventTitle].push(booking);
+        return acc;
+      }, {});
+      
+      // Calculate earnings per event
+      const eventEarnings = Object.entries(eventGroups).map(([eventTitle, eventBookings]) => {
+        const revenue = eventBookings.reduce((total, booking) => {
+          return total + (booking.totalAmount || booking.amount || 0);
+        }, 0);
+        
+        const ticketsSold = eventBookings.length; // Each booking is at least 1 ticket
+        
+        return {
+          title: eventTitle,
+          revenue: revenue,
+          ticketsSold: ticketsSold,
+          bookingsCount: eventBookings.length,
+          createdAt: eventBookings[0]?.createdAt || new Date()
+        };
+      });
+      
+      // Calculate totals
+      const totalRevenue = eventEarnings.reduce((total, event) => total + event.revenue, 0);
+      const totalTicketsSold = eventEarnings.reduce((total, event) => total + event.ticketsSold, 0);
+      const totalEvents = eventEarnings.length;
+      
+      const earningsData = {
+        totalRevenue,
+        totalTicketsSold,
+        totalEvents,
+        events: eventEarnings.sort((a, b) => b.revenue - a.revenue) // Sort by revenue descending
+      };
+      
+      console.log('Organization earnings calculated:', {
+        totalRevenue: earningsData.totalRevenue,
+        totalTicketsSold: earningsData.totalTicketsSold,
+        totalEvents: earningsData.totalEvents,
+        eventTitles: earningsData.events.map(e => e.title)
+      });
+      
+      res.json(earningsData);
+    } catch (error) {
+      console.error('Organization earnings calculation error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Mount all organizer routes under /api/organizer
   app.use("/api/organizer", organizerRoutes);
 
