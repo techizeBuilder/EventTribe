@@ -221,28 +221,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (item.eventId) {
           try {
             let event = null;
-            
+
             // Try different query formats
             if (ObjectId.isValid(item.eventId)) {
               event = await mongoStorage.db.collection("events").findOne({ 
                 _id: new ObjectId(item.eventId) 
               });
             }
-            
+
             if (!event) {
               event = await mongoStorage.db.collection("events").findOne({ 
                 _id: item.eventId 
               });
             }
-            
+
             if (!event) {
               event = await mongoStorage.db.collection("events").findOne({ 
                 id: item.eventId 
               });
             }
-            
+
             console.log(`Event validation for ${item.eventId}:`, event ? 'Found' : 'Not found');
-            
+
             // Don't fail the payment, just log if event not found
             if (!event) {
               console.warn(`Event ${item.eventId} not found in database, proceeding with payment`);
@@ -301,7 +301,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { ObjectId } = await import('mongodb');
 
       const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const totalAmount = ticketDetails.reduce((total, ticket) => {
         return total + (ticket.price * ticket.quantity);
       }, 0);
@@ -362,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create individual bookings for each item
       for (const item of items) {
         const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
+
         const booking = {
           _id: new ObjectId(),
           bookingId,
@@ -541,8 +541,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Final earnings data:', earningsData);
       res.json(earningsData);
     } catch (error) {
-      console.error('Earnings fetch error:', error);
-      res.status(500).json({ message: 'Failed to fetch earnings data' });
+      console.error("Error getting server info:", error);
+      res.status(500).json({ message: "Error getting server info" });
     }
   });
 
@@ -645,7 +645,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/create-dummy-bookings-for-org', async (req, res) => {
     try {
       const { organizerEmail } = req.body;
-      
+
       if (!organizerEmail) {
         return res.status(400).json({ message: 'Organizer email is required' });
       }
@@ -659,7 +659,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Find the organizer
       const organizer = await usersCollection.findOne({ email: organizerEmail });
-      
+
       if (!organizer) {
         return res.status(404).json({ message: 'Organizer not found' });
       }
@@ -854,7 +854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/organizer/earnings - Get organizer's earnings data
+  // GET /api/organizer/earnings - Get organizer earnings data
   app.get('/api/organizer/earnings', authenticateToken, requireRole(['organizer']), async (req, res) => {
     try {
       const organizerId = req.user._id || req.user.id;
@@ -862,91 +862,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await mongoStorage.connect();
       const { ObjectId } = await import('mongodb');
 
-      // Fetch user's events
+      // Get organizer's events
       const eventsCollection = mongoStorage.db.collection('events');
-      let userEvents = await eventsCollection.find({ 
-        organizerId: organizerId 
-      }).toArray();
+      const organizerEvents = await eventsCollection.find({ organizerId }).toArray();
 
-      // If no events found with string ID, try ObjectId
-      if (userEvents.length === 0 && ObjectId.isValid(organizerId)) {
-        userEvents = await eventsCollection.find({ 
-          organizerId: new ObjectId(organizerId)
-        }).toArray();
-      }
-
-      console.log(`Found ${userEvents.length} events for organizer ${organizerId}`);
-
-      // Fetch bookings for these events
-      let bookings = [];
+      // Get bookings for these events
       const bookingsCollection = mongoStorage.db.collection('bookings');
+      let allBookings = [];
 
-      if (userEvents.length > 0) {
-        const eventIds = userEvents.map(event => event._id.toString());
-        const eventObjectIds = userEvents.map(event => event._id);
-
-        bookings = await bookingsCollection.find({
-          $or: [
-            { eventId: { $in: eventIds } },
-            { eventId: { $in: eventObjectIds } }
-          ]
+      if (organizerEvents.length > 0) {
+        const eventIds = organizerEvents.map(event => event._id);
+        allBookings = await bookingsCollection.find({
+          eventId: { $in: eventIds }
         }).toArray();
-
-        console.log(`Found ${bookings.length} bookings for organizer events`);
       }
 
-      // Calculate earnings per event
-      const eventEarnings = userEvents.map(event => {
-        const eventBookings = bookings.filter(booking => {
-          const bookingEventId = booking.eventId?.toString();
-          const eventId = event._id.toString();
-          return bookingEventId === eventId;
-        });
+      // Calculate earnings data
+      const totalRevenue = allBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
+      const totalTicketsSold = allBookings.reduce((sum, booking) => {
+        if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+          return sum + booking.ticketDetails.reduce((total, ticket) => total + (ticket.quantity || 0), 0);
+        }
+        return sum + 1;
+      }, 0);
+      const totalBookings = allBookings.length;
 
-        const revenue = eventBookings.reduce((total, booking) => {
-          return total + (booking.totalAmount || 0);
+      // Event-wise earnings
+      const eventEarnings = organizerEvents.map(event => {
+        const eventBookings = allBookings.filter(booking => 
+          booking.eventId.toString() === event._id.toString()
+        );
+
+        const revenue = eventBookings.reduce((sum, booking) => sum + (booking.totalAmount || 0), 0);
+        const ticketsSold = eventBookings.reduce((sum, booking) => {
+          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+            return sum + booking.ticketDetails.reduce((total, ticket) => total + (ticket.quantity || 0), 0);
+          }
+          return sum + 1;
         }, 0);
 
-        let ticketsSold = 0;
-        eventBookings.forEach(booking => {
-          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
-            ticketsSold += booking.ticketDetails.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0);
-          } else if (booking.quantity) {
-            ticketsSold += booking.quantity;
-          } else {
-            ticketsSold += 1;
-          }
-        });
-
         return {
+```text
           _id: event._id,
           title: event.title,
-          revenue: revenue,
-          ticketsSold: ticketsSold,
+          revenue,
+          ticketsSold,
           bookingsCount: eventBookings.length,
           createdAt: event.createdAt
         };
       });
 
-      // Calculate totals
-      const totalRevenue = eventEarnings.reduce((total, event) => total + event.revenue, 0);
-      const totalTicketsSold = eventEarnings.reduce((total, event) => total + event.ticketsSold, 0);
-      const totalBookings = bookings.length;
-      const totalEvents = userEvents.length;
-
-      const earningsData = {
+      res.json({
         totalRevenue,
         totalTicketsSold,
         totalBookings,
-        totalEvents,
+        totalEvents: organizerEvents.length,
         events: eventEarnings
-      };
+      });
 
-      console.log('Organizer earnings data:', earningsData);
-      res.json(earningsData);
     } catch (error) {
-      console.error('Organizer earnings fetch error:', error);
-      res.status(500).json({ message: 'Failed to fetch earnings data' });
+      console.error('Error fetching earnings:', error);
+      res.status(500).json({ message: 'Failed to fetch earnings', error: error.message });
     }
   });
 

@@ -124,6 +124,30 @@ export default function Bookings() {
     return matchesSearch && matchesStatus && matchesEvent;
   });
 
+  const createSampleBookings = async () => {
+    try {
+      const response = await fetch("/api/organizer/create-sample-bookings", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Created ${data.bookings} sample bookings`);
+        fetchBookings(); // Refresh the bookings list
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || "Failed to create sample bookings");
+      }
+    } catch (error) {
+      console.error("Error creating sample bookings:", error);
+      toast.error("Failed to create sample bookings");
+    }
+  };
+
   const handleViewDetails = (bookingId) => {
     navigate(`/organizer/bookings/${bookingId}`);
   };
@@ -148,6 +172,15 @@ export default function Bookings() {
           </p>
         </div>
         <div className="flex gap-3">
+          {bookings.length === 0 && (
+            <button 
+              onClick={createSampleBookings}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <FiUser className="w-4 h-4" />
+              Create Sample Bookings
+            </button>
+          )}
           <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
             <FiDownload className="w-4 h-4" />
             Export
