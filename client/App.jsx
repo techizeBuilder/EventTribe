@@ -117,8 +117,8 @@ function AppContent() {
             <Route path="events" element={<AdminEventsManagement />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
+            <Route path="earnings/:userId" element={<OrganizationEarnings />} />
           </Route>
-          <Route path="/admin/dashboard/earnings/:userId" element={<OrganizationEarnings />} />
           <Route
             path="/edit-profile"
             element={

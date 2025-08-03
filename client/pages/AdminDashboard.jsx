@@ -66,7 +66,7 @@ export default function AdminDashboard() {
   const getActiveTab = () => {
     const path = location.pathname;
     if (path === "/admin/dashboard") return "overview";
-    if (path.includes("/users")) return "users";
+    if (path.includes("/users") || path.includes("/earnings")) return "users";
     if (path.includes("/events")) return "events";
     if (path.includes("/analytics")) return "analytics";
     if (path.includes("/settings")) return "settings";

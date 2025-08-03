@@ -126,8 +126,8 @@ export default function AdminUsersManagement() {
   };
 
   const handleViewEarnings = (user) => {
-    // Navigate to earnings page
-    window.open(`/admin/dashboard/earnings/${user.id}`, '_blank');
+    // Navigate to earnings page within same tab
+    window.location.href = `/admin/dashboard/earnings/${user.id}`;
   };
 
   const confirmDelete = async () => {
