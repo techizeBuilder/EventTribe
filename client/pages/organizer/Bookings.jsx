@@ -15,6 +15,7 @@ import {
   FiClock
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { authService } from "../../services/authService.js";
 
 export default function Bookings() {
   const navigate = useNavigate();
@@ -33,12 +34,7 @@ export default function Bookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/organizer/bookings", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await authService.apiRequest("/api/organizer/bookings");
 
       if (response.ok) {
         const data = await response.json();
@@ -57,12 +53,7 @@ export default function Bookings() {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch("/api/organizer/events", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await authService.apiRequest("/api/organizer/events");
 
       if (response.ok) {
         const data = await response.json();
@@ -126,12 +117,8 @@ export default function Bookings() {
 
   const createSampleBookings = async () => {
     try {
-      const response = await fetch("/api/organizer/create-sample-bookings", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
+      const response = await authService.apiRequest("/api/organizer/create-sample-bookings", {
+        method: "POST"
       });
 
       if (response.ok) {

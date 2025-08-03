@@ -16,6 +16,7 @@ import {
   FiDownload
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { authService } from "../../services/authService.js";
 
 export default function BookingDetails() {
   const { bookingId } = useParams();
@@ -32,12 +33,7 @@ export default function BookingDetails() {
   const fetchBookingDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/organizer/bookings/${bookingId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await authService.apiRequest(`/api/organizer/bookings/${bookingId}`);
 
       if (response.ok) {
         const data = await response.json();

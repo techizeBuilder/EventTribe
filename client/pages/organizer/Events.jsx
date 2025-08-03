@@ -16,6 +16,7 @@ import {
 } from "react-icons/fi";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { authService } from "../../services/authService.js";
 
 export default function Events() {
   const [events, setEvents] = useState([]);
@@ -34,20 +35,9 @@ export default function Events() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const token =
-        localStorage.getItem("token") || localStorage.getItem("authToken");
+      console.log("Fetching events with authService");
 
-      console.log(
-        "Fetching events with token:",
-        token ? `${token.substring(0, 20)}...` : "No token found",
-      );
-
-      const response = await fetch("/api/organizer/events", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await authService.apiRequest("/api/organizer/events");
 
       console.log("Response status:", response.status);
 

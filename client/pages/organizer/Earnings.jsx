@@ -9,6 +9,7 @@ import {
   FiCreditCard
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { authService } from "../../services/authService.js";
 
 export default function Earnings() {
   const [loading, setLoading] = useState(true);
@@ -22,12 +23,7 @@ export default function Earnings() {
     try {
       setLoading(true);
 
-      const response = await fetch('/api/organizer/earnings', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await authService.apiRequest('/api/organizer/earnings');
 
       if (response.ok) {
         const earningsData = await response.json();

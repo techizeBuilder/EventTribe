@@ -12,6 +12,7 @@ import {
   FiRefreshCw
 } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { authService } from "../../services/authService.js";
 
 export default function OrganizationEarnings() {
   const { userId } = useParams();
@@ -30,12 +31,7 @@ export default function OrganizationEarnings() {
       setLoading(true);
 
       // Fetch user details
-      const userResponse = await fetch(`/api/admin/users/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const userResponse = await authService.apiRequest(`/api/admin/users/${userId}`);
 
       if (userResponse.ok) {
         const userData = await userResponse.json();
@@ -47,12 +43,7 @@ export default function OrganizationEarnings() {
       }
 
       // Fetch organization earnings
-      const earningsResponse = await fetch(`/api/admin/organizations/${userId}/earnings`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const earningsResponse = await authService.apiRequest(`/api/admin/organizations/${userId}/earnings`);
 
       if (earningsResponse.ok) {
         const earningsData = await earningsResponse.json();
