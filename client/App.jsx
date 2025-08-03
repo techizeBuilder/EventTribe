@@ -48,8 +48,8 @@ import DuplicateEvent from "./pages/DuplicateEvent";
 import OrganizationEarnings from "./pages/organizer/OrganizationEarnings";
 import Events from "./pages/organizer/Events";
 import Bookings from "./pages/organizer/Bookings";
-import BookingDetails from "./pages/organizer/BookingDetails';
-import Earnings from './pages/organizer/Earnings';
+import BookingDetails from "./pages/organizer/BookingDetails";
+import Earnings from "./pages/organizer/Earnings";
 import Finances from "./pages/organizer/Finances";
 import Analytics from "./pages/organizer/Analytics";
 
