@@ -92,13 +92,13 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
       } else if (paymentIntent.status === 'succeeded') {
         // Save multi-event booking to backend
         try {
-          console.log('Saving multi-event booking with data:', {
+          console.log('Saving bookings with data:', {
             paymentIntentId: paymentIntent.id,
-            cartItems,
+            items: cartItems,
             userEmail,
             userName
           });
-          
+
           const bookingResponse = await fetch('/api/save-multi-event-booking', {
             method: 'POST',
             headers: {
@@ -106,23 +106,25 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
             },
             body: JSON.stringify({
               paymentIntentId: paymentIntent.id,
-              cartItems,
+              items: cartItems,
               userEmail,
-              userName,
-              totalAmount
+              userName
             }),
           });
 
           const bookingData = await bookingResponse.json();
-          
+
           if (bookingData.success) {
-            console.log('Payment and booking successful');
+            toast.success('Payment successful! All tickets confirmed.');
+            clearCart();
             onSuccess({ ...paymentIntent, bookings: bookingData.bookings });
           } else {
             throw new Error('Failed to save bookings');
           }
         } catch (bookingError) {
           console.error('Booking save error:', bookingError);
+          toast.success('Payment successful!');
+          clearCart();
           onSuccess(paymentIntent);
         }
       }
@@ -258,16 +260,16 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
 
 export default function MultiEventPaymentModal({ isOpen, onClose }) {
   const { clearCart } = useCart();
-  
+
   if (!isOpen) return null;
 
   const handleSuccess = (paymentResult) => {
     console.log('Payment successful:', paymentResult);
     toast.success('Payment successful! All tickets confirmed.');
-    
+
     // Clear the cart after successful payment
     clearCart();
-    
+
     onClose();
   };
 

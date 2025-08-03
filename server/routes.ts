@@ -197,6 +197,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Multi-event payment intent for cart
+  app.post("/api/create-multi-event-payment-intent", async (req, res) => {
+    try {
+      const { items, amount, userEmail, userName } = req.body;
+
+      console.log('Creating multi-event payment intent:', { items, amount, userEmail, userName });
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "Invalid items" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        metadata: {
+          userEmail: userEmail || "",
+          userName: userName || "",
+          itemCount: items.length.toString(),
+          items: JSON.stringify(items.map(item => ({
+            eventId: item.eventId,
+            eventTitle: item.eventTitle,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity,
+            total: item.total
+          })))
+        }
+      });
+
+      console.log('Multi-event payment intent created:', paymentIntent.id);
+
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+    } catch (error: any) {
+      console.error("Error creating multi-event payment intent:", error);
+      res.status(500).json({ 
+        error: "Failed to create multi-event payment intent",
+        message: error.message 
+      });
+    }
+  });
+
+  // Save single event booking
+  app.post("/api/save-booking", async (req, res) => {
+    try {
+      const { paymentIntentId, eventId, eventTitle, ticketDetails, userEmail, userName } = req.body;
+
+      console.log('Saving single booking:', { paymentIntentId, eventId, eventTitle, ticketDetails, userEmail, userName });
+
+      if (!paymentIntentId) {
+        return res.status(400).json({ success: false, error: "Payment intent ID is required" });
+      }
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const totalAmount = ticketDetails.reduce((total, ticket) => {
+        return total + (ticket.price * ticket.quantity);
+      }, 0);
+
+      const booking = {
+        _id: new ObjectId(),
+        bookingId,
+        paymentIntentId,
+        eventId,
+        eventTitle,
+        ticketDetails,
+        userEmail,
+        userName,
+        totalAmount,
+        currency: 'usd',
+        status: 'confirmed',
+        bookingDate: new Date(),
+        createdAt: new Date()
+      };
+
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const result = await bookingsCollection.insertOne(booking);
+
+      console.log('Single booking saved:', result.insertedId);
+
+      res.json({ 
+        success: true, 
+        booking: { ...booking, _id: result.insertedId },
+        message: "Booking saved successfully"
+      });
+    } catch (error: any) {
+      console.error("Error saving single booking:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to save booking",
+        message: error.message 
+      });
+    }
+  });
+
+  // Save multi-event booking
+  app.post("/api/save-multi-event-booking", async (req, res) => {
+    try {
+      const { paymentIntentId, items, userEmail, userName } = req.body;
+
+      console.log('Saving multi-event booking:', { paymentIntentId, items, userEmail, userName });
+
+      if (!paymentIntentId) {
+        return res.status(400).json({ success: false, error: "Payment intent ID is required" });
+      }
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+
+      const bookingsCollection = mongoStorage.db.collection('bookings');
+      const savedBookings = [];
+
+      // Create individual bookings for each item
+      for (const item of items) {
+        const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        const booking = {
+          _id: new ObjectId(),
+          bookingId,
+          paymentIntentId,
+          eventId: item.eventId,
+          eventTitle: item.eventTitle,
+          ticketDetails: [{
+            type: item.name,
+            price: item.price,
+            quantity: item.quantity
+          }],
+          userEmail,
+          userName,
+          totalAmount: item.total,
+          currency: 'usd',
+          status: 'confirmed',
+          bookingDate: new Date(),
+          createdAt: new Date()
+        };
+
+        const result = await bookingsCollection.insertOne(booking);
+        savedBookings.push({ ...booking, _id: result.insertedId });
+      }
+
+      console.log(`Saved ${savedBookings.length} bookings for multi-event payment`);
+
+      res.json({ 
+        success: true, 
+        bookings: savedBookings,
+        message: `Successfully saved ${savedBookings.length} bookings`
+      });
+    } catch (error: any) {
+      console.error("Error saving multi-event booking:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to save booking",
+        message: error.message 
+      });
+    }
+  });
+
   // GET /api/admin/organizations/:userId/earnings
   app.get('/api/admin/organizations/:userId/earnings', authenticateToken, requireRole(['admin']), async (req, res) => {
     try {
