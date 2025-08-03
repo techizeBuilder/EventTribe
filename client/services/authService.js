@@ -102,7 +102,7 @@ class AuthService {
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
     this.token = null;
-    window.location.href = '/organizer-login';
+    // Don't auto-redirect - let the app handle it
   }
 
   // Refresh token
@@ -127,12 +127,18 @@ class AuthService {
         this.setAuthData(data);
         return { success: true, data };
       } else {
-        this.logout();
+        // Clear tokens but don't auto-redirect
+        localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
+        this.token = null;
         return { success: false, error: data.message };
       }
     } catch (error) {
       console.error('Token refresh error:', error);
-      this.logout();
+      // Clear tokens but don't auto-redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      this.token = null;
       return { success: false, error: 'Token refresh failed' };
     }
   }
