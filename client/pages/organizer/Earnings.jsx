@@ -7,7 +7,7 @@ import {
   FiCalendar, 
   FiTrendingUp,
   FiRefreshCw,
-  FiBarChart3,
+  FiBarChart,
   FiEye
 } from "react-icons/fi";
 import toast from "react-hot-toast";
@@ -113,7 +113,7 @@ export default function Earnings() {
                   <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
                     <FiUsers className="w-5 h-5 text-blue-400" />
                   </div>
-                  <FiBarChart3 className="w-5 h-5 text-blue-400" />
+                  <FiBarChart className="w-5 h-5 text-blue-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {earnings.totalTicketsSold || 0}
@@ -149,7 +149,7 @@ export default function Earnings() {
                   <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
                     <FiCalendar className="w-5 h-5 text-orange-400" />
                   </div>
-                  <FiBarChart3 className="w-5 h-5 text-orange-400" />
+                  <FiBarChart className="w-5 h-5 text-orange-400" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-1">
                   {earnings.totalEvents || 0}
@@ -218,7 +218,7 @@ export default function Earnings() {
                         <td colSpan="5" className="text-center py-8">
                           <div className="flex flex-col items-center justify-center">
                             <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mb-4">
-                              <FiBarChart3 className="w-8 h-8 text-gray-500" />
+                              <FiBarChart className="w-8 h-8 text-gray-500" />
                             </div>
                             <p className="text-gray-400 text-lg">No events found</p>
                             <p className="text-gray-500 text-sm">Create your first event to start tracking earnings</p>
