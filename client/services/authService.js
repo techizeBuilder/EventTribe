@@ -132,6 +132,11 @@ class AuthService {
         },
       });
 
+      // Log response for debugging
+      if (!response.ok) {
+        console.log(`API Request failed: ${response.status} ${response.statusText} for ${url}`);
+      }
+
       return response;
     } catch (error) {
       console.error('API request error:', error);

@@ -47,7 +47,10 @@ export default function LoginPage() {
 
       if (response.ok) {
         // Store token in localStorage (consistent with authService)
-        localStorage.setItem('token', data.accessToken || data.token);
+        const token = data.accessToken || data.token;
+        console.log('Login successful, storing token:', token ? token.substring(0, 20) + '...' : 'No token');
+        
+        localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(data.user));
         
         // Dispatch login action to Redux store

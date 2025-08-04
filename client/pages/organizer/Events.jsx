@@ -37,13 +37,16 @@ export default function Events() {
       setLoading(true);
       console.log("Fetching events with token");
 
-      const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+      const token = localStorage.getItem("token");
       
       if (!token) {
+        console.log("No token found, redirecting to login");
         toast.error("Please login first to view events");
         navigate("/login");
         return;
       }
+
+      console.log("Making request with token:", token.substring(0, 20) + "...");
 
       const response = await fetch("/api/organizer/events", {
         method: "GET",
@@ -53,19 +56,34 @@ export default function Events() {
         },
       });
 
-      console.log("Response status:", response.status);
+      console.log("Response status:", response.status, "Response ok:", response.ok);
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Events data:", data);
-        setEvents(data);
+        console.log("Events data received:", data);
+        setEvents(Array.isArray(data) ? data : []);
       } else {
-        const errorData = await response.json();
-        console.error("Error response:", errorData);
-        toast.error(`Error: ${errorData.message}`);
+        console.error("Response not OK:", response.status, response.statusText);
+        
+        try {
+          const errorData = await response.json();
+          console.error("Error response data:", errorData);
+          
+          if (response.status === 401) {
+            toast.error("Authentication failed. Please login again.");
+            localStorage.removeItem("token");
+            localStorage.removeItem("user");
+            navigate("/login");
+          } else {
+            toast.error(`Error: ${errorData.message || 'Failed to fetch events'}`);
+          }
+        } catch (parseError) {
+          console.error("Could not parse error response:", parseError);
+          toast.error(`Server error: ${response.status} ${response.statusText}`);
+        }
       }
     } catch (error) {
-      console.error("Error fetching events:", error);
+      console.error("Network error fetching events:", error);
       toast.error("Network error occurred while fetching events");
     } finally {
       setLoading(false);
@@ -82,13 +100,19 @@ export default function Events() {
       return;
 
     try {
-      const token =
-        localStorage.getItem("token") || localStorage.getItem("authToken");
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        toast.error("Please login first");
+        navigate("/login");
+        return;
+      }
 
       const response = await fetch(`/api/organizer/events/${eventId}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 

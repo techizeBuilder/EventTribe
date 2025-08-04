@@ -3,14 +3,16 @@ import { enhancedAuthService } from '../authServiceEnhanced.js';
 export const authenticateToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    console.log('Auth header received:', authHeader ? 'Bearer ***' : 'None');
+    
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
     if (!token) {
-      console.log('No token provided in request');
+      console.log('No token provided in request for:', req.method, req.path);
       return res.status(401).json({ message: 'Access token required' });
     }
 
-    console.log('Verifying token:', token.substring(0, 20) + '...');
+    console.log('Verifying token:', token.substring(0, 20) + '...', 'for:', req.method, req.path);
     const decoded = enhancedAuthService.verifyAccessToken(token);
     console.log('Token decoded successfully for user:', decoded.userId);
 
