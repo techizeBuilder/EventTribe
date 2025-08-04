@@ -3,7 +3,6 @@ import { useStripe, useElements, CardNumberElement, CardExpiryElement, CardCvcEl
 import { toast } from 'react-hot-toast';
 import { FiCreditCard, FiLock } from 'react-icons/fi';
 import { useAuth } from '../hooks/useAuth';
-import { formatPrice } from '../utils/priceUtils';
 
 const CARD_ELEMENT_OPTIONS = {
   style: {
@@ -210,7 +209,7 @@ export default function PaymentForm({
         ) : (
           <>
             <FiLock className="w-4 h-4 mr-2" />
-            Pay {formatPrice(amount)}
+            Pay ${amount.toFixed(2)}
           </>
         )}
       </button>

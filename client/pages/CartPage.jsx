@@ -4,7 +4,6 @@ import { useCart } from '../hooks/useCart'
 import { FiTrash2, FiMinus, FiPlus, FiShoppingBag } from 'react-icons/fi'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-hot-toast'
-import { formatPrice } from '../utils/priceUtils'
 import MultiEventPaymentModal from '../components/MultiEventPaymentModal'
 
 export default function CartPage() {
@@ -173,7 +172,7 @@ export default function CartPage() {
                       </p>
                       <p className="text-slate-400 text-sm">Subtotal</p>
                       <p className="text-xl font-bold text-blue-400">
-                        {formatPrice(item.ticketType.price * item.quantity)}
+                        ${(item.ticketType.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -193,7 +192,7 @@ export default function CartPage() {
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Items ({cartItems?.length || 0})</span>
-                    <span className="text-white">{formatPrice(calculateTotal())}</span>
+                    <span className="text-white">${calculateTotal().toFixed(2)}</span>
                   </div>
                   
                   <div className="flex justify-between">
@@ -205,7 +204,7 @@ export default function CartPage() {
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold text-white">Total</span>
                       <span className="text-lg font-bold text-blue-400">
-                        {formatPrice(calculateTotal() + 2.50)}
+                        ${(calculateTotal() + 2.50).toFixed(2)}
                       </span>
                     </div>
                   </div>
