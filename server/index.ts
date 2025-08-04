@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { registerEnhancedRoutes } from "./routesEnhanced";
+import organizerRoutes from './routes/organizerRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import notificationRoutes from "./routes/notificationRoutes.js";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -44,8 +46,11 @@ app.use((req, res, next) => {
   console.log('[STARTUP] Connecting to MongoDB...');
   await mongoStorage.connect();
   console.log('[STARTUP] MongoDB connection established');
-  
+
   const server = await registerEnhancedRoutes(app);
+  // Register organizer routes
+  app.use('/api/organizer', organizerRoutes);
+  app.use('/api/admin', adminRoutes);
   app.use('/api/notifications', notificationRoutes);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

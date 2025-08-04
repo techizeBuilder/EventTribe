@@ -105,23 +105,23 @@ export default function Events() {
     }
   };
 
-  // Publish/Unpublish event
-  const handleTogglePublish = async (eventId, currentStatus) => {
+  // Submit event for approval
+  const handleSubmitForApproval = async (eventId, currentStatus) => {
+    if (currentStatus !== "draft") {
+      toast.error("Only draft events can be submitted for approval");
+      return;
+    }
+
     try {
-      const newStatus = currentStatus === "published" ? "draft" : "published";
       const token =
         localStorage.getItem("token") || localStorage.getItem("authToken");
 
-      const response = await fetch(`/api/organizer/events/${eventId}`, {
-        method: "PUT",
+      const response = await fetch(`/api/organizer/events/${eventId}/submit`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          status: newStatus,
-          isPublic: newStatus === "published",
-        }),
       });
 
       if (response.ok) {
@@ -129,16 +129,14 @@ export default function Events() {
         setEvents((prev) =>
           prev.map((event) => (event._id === eventId ? updatedEvent : event)),
         );
-        toast.success(
-          `Event ${newStatus === "published" ? "published" : "unpublished"} successfully!`,
-        );
+        toast.success("Event submitted for admin approval!");
       } else {
         const error = await response.json();
         toast.error(`Error: ${error.message}`);
       }
     } catch (error) {
-      console.error("Error toggling publish status:", error);
-      toast.error("Failed to update event status");
+      console.error("Error submitting event for approval:", error);
+      toast.error("Failed to submit event for approval");
     }
   };
 
@@ -247,7 +245,10 @@ export default function Events() {
           >
             <option value="all">All Status</option>
             <option value="draft">Draft</option>
+            <option value="pending_approval">Pending Approval</option>
             <option value="published">Published</option>
+            <option value="rejected">Rejected</option>
+            <option value="unpublished">Unpublished</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -287,13 +288,20 @@ export default function Events() {
                         ? "bg-green-900 text-green-300"
                         : event.status === "draft"
                           ? "bg-yellow-900 text-yellow-300"
-                          : event.status === "completed"
+                          : event.status === "pending_approval"
                             ? "bg-blue-900 text-blue-300"
-                            : "bg-red-900 text-red-300"
+                            : event.status === "rejected"
+                              ? "bg-red-900 text-red-300"
+                              : event.status === "unpublished"
+                                ? "bg-orange-900 text-orange-300"
+                                : event.status === "completed"
+                                  ? "bg-purple-900 text-purple-300"
+                                  : "bg-gray-900 text-gray-300"
                     }`}
                   >
-                    {event.status?.charAt(0).toUpperCase() +
-                      event.status?.slice(1)}
+                    {event.status === "pending_approval" 
+                      ? "Pending Approval"
+                      : event.status?.charAt(0).toUpperCase() + event.status?.slice(1)}
                   </span>
                 </div>
 
@@ -339,20 +347,30 @@ export default function Events() {
                   >
                     <FiEdit3 className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={() => handleTogglePublish(event._id, event.status)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      event.status === "published"
-                        ? "bg-yellow-600 hover:bg-yellow-700 text-white"
-                        : "bg-green-600 hover:bg-green-700 text-white"
-                    }`}
-                  >
-                    {event.status === "published" ? (
-                      <FiPause className="w-4 h-4" />
-                    ) : (
+                  {event.status === "draft" && (
+                    <button
+                      onClick={() => handleSubmitForApproval(event._id, event.status)}
+                      className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
+                      title="Submit for Admin Approval"
+                    >
                       <FiPlay className="w-4 h-4" />
-                    )}
-                  </button>
+                    </button>
+                  )}
+                  {event.status === "pending_approval" && (
+                    <span className="px-3 py-2 rounded-lg text-sm font-medium bg-blue-900 text-blue-300">
+                      Awaiting Approval
+                    </span>
+                  )}
+                  {event.status === "rejected" && (
+                    <span className="px-3 py-2 rounded-lg text-sm font-medium bg-red-900 text-red-300">
+                      Rejected
+                    </span>
+                  )}
+                  {event.status === "published" && (
+                    <span className="px-3 py-2 rounded-lg text-sm font-medium bg-green-900 text-green-300">
+                      Published
+                    </span>
+                  )}
                   <button
                     onClick={() => handleDeleteEvent(event._id)}
                     className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"

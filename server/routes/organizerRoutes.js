@@ -426,11 +426,11 @@ router.delete('/events/:id', async (req, res) => {
   }
 });
 
-// POST /api/organizer/events/:id/publish - Publish/unpublish event
-router.post('/events/:id/publish', async (req, res) => {
+// POST /api/organizer/events/:id/submit - Submit event for admin approval
+router.post('/events/:id/submit', async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body; // 'published' or 'draft'
+    const organizerId = req.user._id;
     
     // Use MongoDB directly
     const { mongoStorage } = await import('../mongodb-storage.js');
@@ -438,9 +438,25 @@ router.post('/events/:id/publish', async (req, res) => {
     
     const eventsCollection = mongoStorage.db.collection('events');
     const { ObjectId } = await import('mongodb');
+    
+    // Check if event belongs to this organizer
+    const event = await eventsCollection.findOne({ 
+      _id: new ObjectId(id),
+      organizerId: organizerId 
+    });
+    
+    if (!event) {
+      return res.status(404).json({ message: 'Event not found or access denied' });
+    }
+    
+    // Only allow submission if event is in draft status
+    if (event.status !== 'draft') {
+      return res.status(400).json({ message: 'Only draft events can be submitted for approval' });
+    }
+    
     const result = await eventsCollection.findOneAndUpdate(
       { _id: new ObjectId(id) },
-      { $set: { status, updatedAt: new Date() } },
+      { $set: { status: 'pending_approval', updatedAt: new Date() } },
       { returnDocument: 'after' }
     );
     
@@ -450,8 +466,8 @@ router.post('/events/:id/publish', async (req, res) => {
       res.status(404).json({ message: 'Event not found' });
     }
   } catch (error) {
-    console.error('Publish event error:', error);
-    res.status(500).json({ message: 'Failed to publish event', error: error.message });
+    console.error('Submit event error:', error);
+    res.status(500).json({ message: 'Failed to submit event for approval', error: error.message });
   }
 });
 

@@ -13,10 +13,10 @@ export const authenticateToken = async (req, res, next) => {
     console.log('Verifying token:', token.substring(0, 20) + '...');
     const decoded = enhancedAuthService.verifyAccessToken(token);
     console.log('Token decoded successfully for user:', decoded.userId);
-    
+
     const user = await enhancedAuthService.getUserById(decoded.userId);
     console.log('User found:', user ? user.email : 'No user');
-    
+
     if (!user) {
       return res.status(401).json({ message: 'User not found' });
     }
