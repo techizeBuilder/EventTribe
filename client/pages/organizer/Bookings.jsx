@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
@@ -137,45 +136,14 @@ export default function Bookings() {
       booking.attendeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.attendeeEmail?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       booking.eventTitle?.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === "all" || booking.status === statusFilter;
     const matchesEvent = eventFilter === "all" || booking.eventId === eventFilter;
 
     return matchesSearch && matchesStatus && matchesEvent;
   });
 
-  const createSampleBookings = async () => {
-    try {
-      // Get the current user to get organization ID
-      const user = authService.getCurrentUser();
-      if (!user) {
-        toast.error("Please log in to create sample bookings");
-        return;
-      }
-
-      const response = await authService.apiRequest("/api/organizer/sample-data/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          organizationId: user._id || user.id // Use user ID as organization ID
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        toast.success("Sample data generated successfully!");
-        fetchBookings(); // Refresh the bookings list
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || "Failed to create sample bookings");
-      }
-    } catch (error) {
-      console.error("Error creating sample bookings:", error);
-      toast.error("Failed to create sample bookings");
-    }
-  };
+  // Removed sample booking creation - only work with real database bookings
 
   const handleViewDetails = (bookingId) => {
     navigate(`/organizer/bookings/${bookingId}`);
@@ -202,13 +170,7 @@ export default function Bookings() {
         </div>
         <div className="flex gap-3">
           {bookings.length === 0 && (
-            <button 
-              onClick={createSampleBookings}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              <FiUser className="w-4 h-4" />
-              Create Sample Bookings
-            </button>
+           null
           )}
           <button className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2">
             <FiDownload className="w-4 h-4" />
@@ -374,7 +336,7 @@ export default function Bookings() {
             <FiCalendar className="w-8 h-8 text-blue-500" />
           </div>
         </div>
-        
+
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -386,7 +348,7 @@ export default function Bookings() {
             <FiCheck className="w-8 h-8 text-green-500" />
           </div>
         </div>
-        
+
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -398,7 +360,7 @@ export default function Bookings() {
             <FiClock className="w-8 h-8 text-yellow-500" />
           </div>
         </div>
-        
+
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
