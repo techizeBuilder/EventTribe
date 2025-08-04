@@ -8,6 +8,7 @@ import {
   FiX,
 } from "react-icons/fi";
 import { useAuth } from "../hooks/useAuth";
+import { formatPrice } from "../utils/priceUtils";
 import { toast } from "react-hot-toast";
 
 export default function MyBookings() {
@@ -139,7 +140,7 @@ export default function MyBookings() {
                   </div>
                   <div>
                     <p className="text-gray-400 text-sm mb-1">Total Amount</p>
-                    <p className="text-white font-medium">${booking.totalAmount.toFixed(2)}</p>
+                    <p className="text-white font-medium">{formatPrice(booking.totalAmount)}</p>
                   </div>
                   <div>
                     <p className="text-gray-400 text-sm mb-1">Payment Status</p>

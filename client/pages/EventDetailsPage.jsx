@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+import { formatPrice } from "../utils/priceUtils";
 import {
   FiMapPin,
   FiCalendar,
@@ -433,13 +434,13 @@ const EventDetailsPage = () => {
                                   {ticket.displayPrice &&
                                     ticket.displayPrice !== ticket.price && (
                                       <span className="text-gray-400 line-through text-sm">
-                                        ${ticket.displayPrice.toFixed(2)}
+                                        {formatPrice(ticket.displayPrice)}
                                       </span>
                                     )}
                                   <p className="text-white font-bold text-xl">
                                     $
                                     {ticket.price
-                                      ? ticket.price.toFixed(2)
+                                      ? formatPrice(ticket.price)
                                       : "0.00"}
                                   </p>
                                 </div>
@@ -560,7 +561,7 @@ const EventDetailsPage = () => {
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <h2 className="text-white text-lg sm:text-xl font-bold">
                   Checkout - {event.ticketTypes?.[0]?.currency || "$"}{" "}
-                  {getTotalAmount().toFixed(2)}
+                  {formatPrice(getTotalAmount())}
                 </h2>
                 <button
                   onClick={() => setShowCheckout(false)}
@@ -588,7 +589,7 @@ const EventDetailsPage = () => {
                       </div>
                       <p className="font-bold">
                         {ticket.currency || "$"}{" "}
-                        {(ticket.price * quantity).toFixed(2)}
+                        {formatPrice(ticket.price * quantity)}
                       </p>
                     </div>
                   );
@@ -600,7 +601,7 @@ const EventDetailsPage = () => {
                   <p className="text-lg font-bold">Total</p>
                   <p className="text-lg font-bold">
                     {event.ticketTypes?.[0]?.currency || "$"}{" "}
-                    {getTotalAmount().toFixed(2)}
+                    {formatPrice(getTotalAmount())}
                   </p>
                 </div>
               </div>
@@ -785,7 +786,7 @@ const EventDetailsPage = () => {
           >
             <span>
               Checkout - {event.ticketTypes?.[0]?.currency || "$"}{" "}
-              {getTotalAmount().toFixed(2)}
+              {formatPrice(getTotalAmount())}
             </span>
             <FiX className="w-5 h-5 rotate-45" />
           </button>

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiCheckCircle } from 'react-icons/fi';
 import { useLocation } from 'wouter';
+import { formatPrice } from '../utils/priceUtils';
 
 export default function PaymentSuccess({ 
   eventTitle, 
@@ -46,13 +47,13 @@ export default function PaymentSuccess({
           {ticketDetails.map((ticket, index) => (
             <div key={index} className="flex justify-between items-center text-sm text-gray-300 mb-2">
               <span>{ticket.name} x {ticket.quantity}</span>
-              <span>${ticket.total.toFixed(2)}</span>
+              <span>{formatPrice(ticket.total)}</span>
             </div>
           ))}
           <div className="border-t border-gray-700 pt-2 mt-2">
             <div className="flex justify-between items-center text-white font-semibold">
               <span>Total Paid</span>
-              <span>${(paymentIntent.amount / 100).toFixed(2)}</span>
+              <span>{formatPrice(paymentIntent.amount / 100)}</span>
             </div>
           </div>
         </div>

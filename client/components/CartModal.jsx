@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { FiX, FiPlus, FiMinus, FiTrash2 } from 'react-icons/fi';
 import { useCart } from '../hooks/useCart';
+import { formatPrice } from '../utils/priceUtils';
 import { useState } from 'react';
 import MultiEventPaymentModal from './MultiEventPaymentModal';
 
@@ -88,7 +89,7 @@ export default function CartModal({ isOpen, onClose }) {
                         </button>
                       </div>
                       <span className="text-white font-medium">
-                        ${(item.ticketType.price * item.quantity).toFixed(2)}
+                        {formatPrice(item.ticketType.price * item.quantity)}
                       </span>
                     </div>
                   </div>
@@ -102,7 +103,7 @@ export default function CartModal({ isOpen, onClose }) {
               <div className="flex justify-between items-center mb-4">
                 <span className="text-white font-bold">Total:</span>
                 <span className="text-white font-bold text-lg">
-                  ${getTotalPrice().toFixed(2)}
+                  {formatPrice(getTotalPrice())}
                 </span>
               </div>
               
