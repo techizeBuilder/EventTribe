@@ -226,7 +226,9 @@ const EventDetailsPage = () => {
 
   // Helper function to handle expired event actions
   const handleExpiredEventAction = () => {
-    toast.error("This event is no longer available for booking as the last date has passed.");
+    toast.error(
+      "This event is no longer available for booking as the last date has passed.",
+    );
   };
 
   return (
@@ -290,23 +292,26 @@ const EventDetailsPage = () => {
                     <FiCalendar className="w-5 h-5 mr-3 text-red-400" />
                     <div>
                       <div className="font-medium">
-                        {event.startDate 
-                          ? new Date(event.startDate).toLocaleDateString("en-US", {
-                              weekday: "long",
-                              month: "long", 
-                              day: "numeric",
-                              year: "numeric"
-                            })
-                          : "Date TBD"
-                        }
+                        {event.startDate
+                          ? new Date(event.startDate).toLocaleDateString(
+                              "en-US",
+                              {
+                                weekday: "long",
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )
+                          : "Date TBD"}
                       </div>
                       {event.endDate && event.endDate !== event.startDate && (
                         <div className="text-sm text-gray-400">
-                          Ends: {new Date(event.endDate).toLocaleDateString("en-US", {
+                          Ends:{" "}
+                          {new Date(event.endDate).toLocaleDateString("en-US", {
                             weekday: "long",
                             month: "long",
-                            day: "numeric", 
-                            year: "numeric"
+                            day: "numeric",
+                            year: "numeric",
                           })}
                         </div>
                       )}
@@ -316,18 +321,22 @@ const EventDetailsPage = () => {
                     <FiClock className="w-5 h-5 mr-3 text-red-400" />
                     <span>
                       {event.startDate
-                        ? new Date(event.startDate).toLocaleTimeString("en-US", {
-                            hour: "numeric",
-                            minute: "2-digit",
-                            hour12: true,
-                          })
-                        : "Time TBD"
-                      }
+                        ? new Date(event.startDate).toLocaleTimeString(
+                            "en-US",
+                            {
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            },
+                          )
+                        : "Time TBD"}
                     </span>
                   </div>
                   <div className="flex items-center text-gray-300">
                     <FiMapPin className="w-5 h-5 mr-3 text-red-400" />
-                    <span>{event.location || event.venue || "Location TBD"}</span>
+                    <span>
+                      {event.location || event.venue || "Location TBD"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -388,9 +397,13 @@ const EventDetailsPage = () => {
 
                   {event.ticketTypes && event.ticketTypes.length > 0 ? (
                     event.ticketTypes
-                      .filter((ticket) => !ticket.hideTicket && ticket.isActive !== false)
+                      .filter(
+                        (ticket) =>
+                          !ticket.hideTicket && ticket.isActive !== false,
+                      )
                       .map((ticket, index) => {
-                        const remainingQuantity = ticket.quantity - (ticket.sold || 0);
+                        const remainingQuantity =
+                          ticket.quantity - (ticket.sold || 0);
                         const maxAllowedQty = Math.min(
                           ticket.maxCartQty || 10,
                           remainingQuantity || ticket.quantity || 100,
@@ -430,17 +443,15 @@ const EventDetailsPage = () => {
                               </div>
                               <div className="text-right w-full sm:w-auto">
                                 <div className="flex items-center gap-2 justify-end mb-2">
-                                  {ticket.displayPrice &&
-                                    ticket.displayPrice !== ticket.price && (
-                                      <span className="text-gray-400 line-through text-sm">
-                                        ${ticket.displayPrice.toFixed(2)}
-                                      </span>
-                                    )}
+                                  {console.log("ticket.price", ticket)}
+                                  {ticket.displayPrice > ticket.price && (
+                                    <span className="text-gray-400 line-through text-sm">
+                                      ${ticket.displayPrice.toFixed(2)}
+                                    </span>
+                                  )}
+
                                   <p className="text-white font-bold text-xl">
-                                    $
-                                    {ticket.price
-                                      ? ticket.price.toFixed(2)
-                                      : "0.00"}
+                                    ${ticket.price?.toFixed(2) ?? "0.00"}
                                   </p>
                                 </div>
 
@@ -505,7 +516,7 @@ const EventDetailsPage = () => {
                                     )}
                                   </div>
                                 )}
-                                </div>
+                              </div>
                             </div>
                           </div>
                         );
@@ -513,10 +524,9 @@ const EventDetailsPage = () => {
                   ) : (
                     <div className="bg-black/40 border border-gray-600 rounded-lg p-4 backdrop-blur-sm">
                       <p className="text-gray-300 text-center">
-                        {isEventExpired() 
+                        {isEventExpired()
                           ? "This event is no longer available for booking as the last date has passed."
-                          : "No tickets available for this event"
-                        }
+                          : "No tickets available for this event"}
                       </p>
                     </div>
                   )}
@@ -525,11 +535,6 @@ const EventDetailsPage = () => {
 
               {/* Contact Organizer Button */}
               <div className="pt-6">
-                <div className="flex items-center justify-center mb-6">
-                  <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-lg">O</span>
-                  </div>
-                </div>
                 <button
                   onClick={handleContactOrganizer}
                   className="w-full bg-white hover:bg-gray-100 text-black font-bold py-2 sm:py-3 px-4 sm:px-6 rounded-full transition-colors text-sm sm:text-base"

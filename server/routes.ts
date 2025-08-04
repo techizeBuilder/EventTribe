@@ -201,8 +201,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
       const { items, amount, userEmail, userName } = req.body;
-
-      console.log('Creating multi-event payment intent:', { items, amount, userEmail, userName });
+        
+      console.log("✅ HIT /api/create-multi-event-payment-intent", req.body);
 
       if (!amount || amount <= 0) {
         return res.status(400).json({ error: "Invalid amount" });

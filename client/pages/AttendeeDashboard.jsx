@@ -29,11 +29,11 @@ export default function AttendeeDashboard() {
       label: "PAYMENT DETAILS",
       path: "/attendee-dashboard/payment-details",
     },
-    {
-      id: "my-reservations",
-      label: "MY RESERVATIONS",
-      path: "/attendee-dashboard/my-reservations",
-    },
+    // {
+    //   id: "my-reservations",
+    //   label: "MY RESERVATIONS",
+    //   path: "/attendee-dashboard/my-reservations",
+    // },
   ];
 
   const currentTab = location.pathname.split("/").pop() || "my-bookings";
@@ -44,7 +44,10 @@ export default function AttendeeDashboard() {
         {/* Welcome Section */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-white mb-4">
-            WELCOME BACK, {user?.name?.toUpperCase() || user?.email?.split("@")[0]?.toUpperCase() || "USER"}
+            WELCOME BACK,{" "}
+            {user?.name?.toUpperCase() ||
+              user?.email?.split("@")[0]?.toUpperCase() ||
+              "USER"}
           </h1>
           <div className="w-24 h-1 bg-white mx-auto"></div>
         </div>

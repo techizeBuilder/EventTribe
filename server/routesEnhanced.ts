@@ -18,7 +18,8 @@ import QRCode from "qrcode";
 import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
+import dotenv from "dotenv";
+dotenv.config();
 // Initialize Stripe
 let stripe: Stripe | null = null;
 if (process.env.STRIPE_SECRET_KEY) {
@@ -26,16 +27,18 @@ if (process.env.STRIPE_SECRET_KEY) {
     apiVersion: "2023-10-16",
   });
 } else {
-  console.log('[WARNING] Stripe not configured - missing STRIPE_SECRET_KEY environment variable. Payment features will be disabled.');
+  console.log(
+    "[WARNING] Stripe not configured - missing STRIPE_SECRET_KEY environment variable. Payment features will be disabled.",
+  );
 }
 
 // Email configuration
 const emailTransporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  }
+    pass: process.env.EMAIL_PASS,
+  },
 });
 
 // Generate QR code for ticket
@@ -45,19 +48,19 @@ async function generateQRCode(data: any) {
       bookingId: data.bookingId,
       eventId: data.eventId,
       userId: data.userEmail,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
-    
+
     return await QRCode.toDataURL(qrData, {
       width: 200,
       margin: 2,
       color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
+        dark: "#000000",
+        light: "#FFFFFF",
+      },
     });
   } catch (error) {
-    console.error('QR code generation error:', error);
+    console.error("QR code generation error:", error);
     return null;
   }
 }
@@ -90,15 +93,21 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
             
             <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h3 style="color: #374151; margin-bottom: 15px;">Ticket Details</h3>
-              ${booking.ticketDetails && booking.ticketDetails.length > 0 ? 
-                booking.ticketDetails.map((ticket: any) => 
-                  `<p>${ticket.name} x ${ticket.quantity} - $${ticket.total.toFixed(2)}</p>`
-                ).join('') : 
-                '<p>General Admission</p>'
+              ${
+                booking.ticketDetails && booking.ticketDetails.length > 0
+                  ? booking.ticketDetails
+                      .map(
+                        (ticket: any) =>
+                          `<p>${ticket.name} x ${ticket.quantity} - $${ticket.total.toFixed(2)}</p>`,
+                      )
+                      .join("")
+                  : "<p>General Admission</p>"
               }
             </div>
             
-            ${qrCode ? `
+            ${
+              qrCode
+                ? `
             <div style="background: white; padding: 20px; border-radius: 8px; text-align: center;">
               <h3 style="color: #374151; margin-bottom: 15px;">Your QR Code</h3>
               <img src="${qrCode}" alt="QR Code" style="max-width: 200px;">
@@ -106,7 +115,9 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
                 Present this QR code at the event entrance
               </p>
             </div>
-            ` : ''}
+            `
+                : ""
+            }
           </div>
           
           <div style="background: #374151; color: white; padding: 20px; text-align: center;">
@@ -115,14 +126,14 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
             </p>
           </div>
         </div>
-      `
+      `,
     };
 
     await emailTransporter.sendMail(mailOptions);
-    console.log('Confirmation email sent successfully');
+    console.log("Confirmation email sent successfully");
     return true;
   } catch (error) {
-    console.error('Email sending error:', error);
+    console.error("Email sending error:", error);
     return false;
   }
 }
@@ -251,12 +262,20 @@ function generateTicketHTML(booking: any) {
             
             <div class="ticket-details">
                 <h3>Ticket Details</h3>
-                ${booking.ticketDetails ? booking.ticketDetails.map((ticket: any) => `
+                ${
+                  booking.ticketDetails
+                    ? booking.ticketDetails
+                        .map(
+                          (ticket: any) => `
                     <div class="ticket-item">
                         <span>${ticket.name} x ${ticket.quantity}</span>
                         <span>$${ticket.total.toFixed(2)}</span>
                     </div>
-                `).join('') : ''}
+                `,
+                        )
+                        .join("")
+                    : ""
+                }
             </div>
             
             <div class="total">
@@ -307,10 +326,14 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
   // Middleware to extract user from JWT token (optional authentication)
   const optionalAuth = (req: any, res: any, next: any) => {
-    const token = req.cookies?.token || req.headers.authorization?.replace('Bearer ', '');
+    const token =
+      req.cookies?.token || req.headers.authorization?.replace("Bearer ", "");
     if (token) {
       try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret') as any;
+        const decoded = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "default-secret",
+        ) as any;
         req.user = decoded;
       } catch (error) {
         // Invalid token, continue without user
@@ -323,9 +346,11 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/events", optionalAuth, async (req, res) => {
     try {
       // Quick connection check
-      if (!await mongoStorage.ensureConnection()) {
+      if (!(await mongoStorage.ensureConnection())) {
         console.log("Database connection failed, returning error");
-        return res.status(500).json({ message: 'Database temporarily unavailable. Please try again.' });
+        return res.status(500).json({
+          message: "Database temporarily unavailable. Please try again.",
+        });
       }
 
       // Get published events that are not expired and exclude user's own events if authenticated
@@ -336,26 +361,26 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
             $or: [
               { status: "published" },
               { status: { $exists: false } },
-              { isPublic: { $exists: false } }
-            ]
+              { isPublic: { $exists: false } },
+            ],
           },
           {
             $or: [
               { endDate: { $gte: currentDate.toISOString() } },
               { endDate: { $exists: false } },
-              { endDate: null }
-            ]
-          }
-        ]
+              { endDate: null },
+            ],
+          },
+        ],
       };
 
       // If user is authenticated, exclude their own events
       if (req.user && req.user._id) {
-        query.$and.push({ 
+        query.$and.push({
           $and: [
             { organizerId: { $ne: req.user._id } },
-            { organizerId: { $ne: req.user._id.toString() } }
-          ]
+            { organizerId: { $ne: req.user._id.toString() } },
+          ],
         });
       }
 
@@ -412,14 +437,24 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
           date: "Tue, Jul 15",
           time: "7:00 PM",
           location: "789 Art District, Los Angeles, CA",
-          image: "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
-          description: "Experience the latest contemporary art exhibition featuring local and international artists.",
+          image:
+            "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
+          description:
+            "Experience the latest contemporary art exhibition featuring local and international artists.",
           venue: "Modern Art Gallery",
           ticketTypes: [
-            { name: "General Admission", price: 25, description: "Standard entry ticket" },
-            { name: "VIP", price: 50, description: "VIP access with cocktails" }
-          ]
-        }
+            {
+              name: "General Admission",
+              price: 25,
+              description: "Standard entry ticket",
+            },
+            {
+              name: "VIP",
+              price: 50,
+              description: "VIP access with cocktails",
+            },
+          ],
+        },
       ];
       res.json(sampleEvents);
     }
@@ -536,30 +571,32 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/events/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       // Quick connection check without retry logic
-      if (!await mongoStorage.ensureConnection()) {
-        return res.status(500).json({ message: 'Database temporarily unavailable. Please try again.' });
+      if (!(await mongoStorage.ensureConnection())) {
+        return res.status(500).json({
+          message: "Database temporarily unavailable. Please try again.",
+        });
       }
-      
-      const eventsCollection = mongoStorage.db.collection('events');
-      const { ObjectId } = await import('mongodb');
-      
+
+      const eventsCollection = mongoStorage.db.collection("events");
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid event ID format' });
+        return res.status(400).json({ message: "Invalid event ID format" });
       }
-      
+
       // Find the event by ID - allow all events for now (public access)
-      const event = await eventsCollection.findOne({ 
-        _id: new ObjectId(id)
+      const event = await eventsCollection.findOne({
+        _id: new ObjectId(id),
       });
-      
+
       if (!event) {
-        console.log('Event not found in database for ID:', id);
-        return res.status(404).json({ message: 'Event not found' });
+        console.log("Event not found in database for ID:", id);
+        return res.status(404).json({ message: "Event not found" });
       }
-      
+
       // Transform event data to match frontend expectations
       const transformedEvent = {
         id: event._id,
@@ -583,7 +620,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         location: event.address || event.venue || "Location TBD",
         venue: event.venue || "",
         address: event.address || "",
-        image: event.image || event.coverImage || 
+        image:
+          event.image ||
+          event.coverImage ||
           "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=400&h=300&fit=crop",
         description: event.description || "",
         startDate: event.startDate,
@@ -595,22 +634,22 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         allowRefunds: event.allowRefunds,
         locationType: event.locationType,
         createdAt: event.createdAt,
-        updatedAt: event.updatedAt
+        updatedAt: event.updatedAt,
       };
-      
+
       res.json(transformedEvent);
     } catch (error) {
       console.error("Error fetching single event:", error);
       // Return a more user-friendly error message
-      if (error.message.includes('Event not found')) {
+      if (error.message.includes("Event not found")) {
         res.status(404).json({ message: "Event not found" });
       } else {
-        res.status(500).json({ message: "Unable to load event. Please try again in a moment." });
+        res.status(500).json({
+          message: "Unable to load event. Please try again in a moment.",
+        });
       }
     }
   });
-
-
 
   // Get events by category
   app.get("/api/events/category/:category", async (req, res) => {
@@ -622,7 +661,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         .collection("events")
         .find({
           status: "published",
-          category: { $regex: new RegExp(category, 'i') } // Case insensitive match
+          category: { $regex: new RegExp(category, "i") }, // Case insensitive match
         })
         .sort({ startDate: 1 })
         .limit(6)
@@ -745,7 +784,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/login", authRateLimit, async (req, res) => {
     try {
       const { email, password, role } = req.body;
-      
+
       // Special handling for admin login
       if (role === "admin") {
         // For demo purposes, allow admin login with specific credentials
@@ -758,12 +797,13 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
             firstName: "Admin",
             lastName: "User",
             emailVerified: true,
-            phoneVerified: true
+            phoneVerified: true,
           };
-          
+
           // Generate tokens for admin
-          const { accessToken, refreshToken } = enhancedAuthService.generateTokens(adminUser._id, "admin");
-          
+          const { accessToken, refreshToken } =
+            enhancedAuthService.generateTokens(adminUser._id, "admin");
+
           // Set HTTP-only cookies for tokens
           res.cookie("accessToken", accessToken, {
             httpOnly: true,
@@ -786,7 +826,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
           return res.status(401).json({ message: "Invalid admin credentials" });
         }
       }
-      
+
       // Regular user login
       const result = await enhancedAuthService.login(req.body);
 
@@ -1183,34 +1223,42 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/overview", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       // Get total users
-      const totalUsers = await mongoStorage.db.collection("auth_users").countDocuments();
-      
+      const totalUsers = await mongoStorage.db
+        .collection("auth_users")
+        .countDocuments();
+
       // Get total events
-      const totalEvents = await mongoStorage.db.collection("events").countDocuments();
-      
+      const totalEvents = await mongoStorage.db
+        .collection("events")
+        .countDocuments();
+
       // Get total revenue from bookings
-      const revenueData = await mongoStorage.db.collection("bookings").aggregate([
-        { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-      ]).toArray();
+      const revenueData = await mongoStorage.db
+        .collection("bookings")
+        .aggregate([{ $group: { _id: null, total: { $sum: "$totalAmount" } } }])
+        .toArray();
       const totalRevenue = revenueData[0]?.total || 0;
-      
+
       // Get active events (published and future)
-      const activeEvents = await mongoStorage.db.collection("events").countDocuments({
-        status: "published",
-        startDate: { $gte: new Date() }
-      });
-      
+      const activeEvents = await mongoStorage.db
+        .collection("events")
+        .countDocuments({
+          status: "published",
+          startDate: { $gte: new Date() },
+        });
+
       // Get total attendees from bookings
-      const attendeeData = await mongoStorage.db.collection("bookings").aggregate([
-        { $group: { _id: null, total: { $sum: "$attendees" } } }
-      ]).toArray();
+      const attendeeData = await mongoStorage.db
+        .collection("bookings")
+        .aggregate([{ $group: { _id: null, total: { $sum: "$attendees" } } }])
+        .toArray();
       const totalAttendees = attendeeData[0]?.total || 0;
-      
+
       // Calculate monthly growth (mock for now)
       const monthlyGrowth = 12.5;
-      
+
       res.json({
         totalUsers,
         totalEvents,
@@ -1220,7 +1268,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         monthlyGrowth,
         userEngagement: 78,
         eventSuccessRate: 92,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
       });
     } catch (error) {
       console.error("Error fetching admin overview:", error);
@@ -1232,20 +1280,23 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/users", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const users = await mongoStorage.db.collection("auth_users").find({}).toArray();
-      
-      const formattedUsers = users.map(user => ({
+
+      const users = await mongoStorage.db
+        .collection("auth_users")
+        .find({})
+        .toArray();
+
+      const formattedUsers = users.map((user) => ({
         id: user._id.toString(),
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "N/A",
         email: user.email,
-        role: user.role || 'attendee',
-        status: user.emailVerified ? 'active' : 'pending',
+        role: user.role || "attendee",
+        status: user.emailVerified ? "active" : "pending",
         verified: user.emailVerified && user.phoneVerified,
         joinDate: user.createdAt || new Date(),
-        lastLogin: user.lastLogin || new Date()
+        lastLogin: user.lastLogin || new Date(),
       }));
-      
+
       res.json(formattedUsers);
     } catch (error) {
       console.error("Error fetching admin users:", error);
@@ -1257,20 +1308,31 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/events", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const events = await mongoStorage.db.collection("events").find({}).toArray();
-      
-      const formattedEvents = events.map(event => ({
+
+      const events = await mongoStorage.db
+        .collection("events")
+        .find({})
+        .toArray();
+
+      const formattedEvents = events.map((event) => ({
         id: event._id,
         title: event.title,
         organizer: event.organizerId,
         date: event.startDate,
         status: event.status,
-        tickets: event.ticketTypes?.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0) || 0,
-        revenue: event.ticketTypes?.reduce((sum, ticket) => sum + ((ticket.price || 0) * (ticket.sold || 0)), 0) || 0,
-        attendees: event.attendees || 0
+        tickets:
+          event.ticketTypes?.reduce(
+            (sum, ticket) => sum + (ticket.quantity || 0),
+            0,
+          ) || 0,
+        revenue:
+          event.ticketTypes?.reduce(
+            (sum, ticket) => sum + (ticket.price || 0) * (ticket.sold || 0),
+            0,
+          ) || 0,
+        attendees: event.attendees || 0,
       }));
-      
+
       res.json(formattedEvents);
     } catch (error) {
       console.error("Error fetching admin events:", error);
@@ -1282,30 +1344,50 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/events/stats", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const totalEvents = await mongoStorage.db.collection("events").countDocuments();
-      const publishedEvents = await mongoStorage.db.collection("events").countDocuments({ status: "published" });
-      const draftEvents = await mongoStorage.db.collection("events").countDocuments({ status: "draft" });
-      
+
+      const totalEvents = await mongoStorage.db
+        .collection("events")
+        .countDocuments();
+      const publishedEvents = await mongoStorage.db
+        .collection("events")
+        .countDocuments({ status: "published" });
+      const draftEvents = await mongoStorage.db
+        .collection("events")
+        .countDocuments({ status: "draft" });
+
       // Get total revenue from all events
-      const events = await mongoStorage.db.collection("events").find({}).toArray();
+      const events = await mongoStorage.db
+        .collection("events")
+        .find({})
+        .toArray();
       const totalRevenue = events.reduce((sum, event) => {
-        return sum + (event.ticketTypes?.reduce((ticketSum, ticket) => 
-          ticketSum + ((ticket.price || 0) * (ticket.sold || 0)), 0) || 0);
+        return (
+          sum +
+          (event.ticketTypes?.reduce(
+            (ticketSum, ticket) =>
+              ticketSum + (ticket.price || 0) * (ticket.sold || 0),
+            0,
+          ) || 0)
+        );
       }, 0);
-      
+
       // Get total tickets sold
       const totalTickets = events.reduce((sum, event) => {
-        return sum + (event.ticketTypes?.reduce((ticketSum, ticket) => 
-          ticketSum + (ticket.sold || 0), 0) || 0);
+        return (
+          sum +
+          (event.ticketTypes?.reduce(
+            (ticketSum, ticket) => ticketSum + (ticket.sold || 0),
+            0,
+          ) || 0)
+        );
       }, 0);
-      
+
       res.json({
         totalEvents,
         publishedEvents,
         draftEvents,
         totalRevenue,
-        totalTickets
+        totalTickets,
       });
     } catch (error) {
       console.error("Error fetching admin event stats:", error);
@@ -1317,22 +1399,25 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/analytics", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       // Get revenue data
-      const revenueData = await mongoStorage.db.collection("bookings").aggregate([
-        { $group: { _id: null, total: { $sum: "$totalAmount" } } }
-      ]).toArray();
-      
+      const revenueData = await mongoStorage.db
+        .collection("bookings")
+        .aggregate([{ $group: { _id: null, total: { $sum: "$totalAmount" } } }])
+        .toArray();
+
       // Get event stats
-      const eventStats = await mongoStorage.db.collection("events").aggregate([
-        { $group: { _id: "$status", count: { $sum: 1 } } }
-      ]).toArray();
-      
+      const eventStats = await mongoStorage.db
+        .collection("events")
+        .aggregate([{ $group: { _id: "$status", count: { $sum: 1 } } }])
+        .toArray();
+
       // Get user stats
-      const userStats = await mongoStorage.db.collection("auth_users").aggregate([
-        { $group: { _id: "$role", count: { $sum: 1 } } }
-      ]).toArray();
-      
+      const userStats = await mongoStorage.db
+        .collection("auth_users")
+        .aggregate([{ $group: { _id: "$role", count: { $sum: 1 } } }])
+        .toArray();
+
       res.json({
         totalRevenue: revenueData[0]?.total || 0,
         totalEvents: eventStats.reduce((sum, stat) => sum + stat.count, 0),
@@ -1343,7 +1428,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         eventStats,
         userStats,
         revenueGrowth: 23.8,
-        userGrowth: 18.2
+        userGrowth: 18.2,
       });
     } catch (error) {
       console.error("Error fetching admin analytics:", error);
@@ -1355,38 +1440,45 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/activities", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       // Get recent user registrations
-      const recentUsers = await mongoStorage.db.collection("auth_users")
+      const recentUsers = await mongoStorage.db
+        .collection("auth_users")
         .find({})
         .sort({ createdAt: -1 })
         .limit(5)
         .toArray();
-      
+
       // Get recent events
-      const recentEvents = await mongoStorage.db.collection("events")
+      const recentEvents = await mongoStorage.db
+        .collection("events")
         .find({})
         .sort({ createdAt: -1 })
         .limit(5)
         .toArray();
-      
+
       const activities = [
-        ...recentUsers.map(user => ({
+        ...recentUsers.map((user) => ({
           id: user._id,
-          type: 'user_registered',
-          message: `New user registered: ${user.firstName || ''} ${user.lastName || ''}`,
+          type: "user_registered",
+          message: `New user registered: ${user.firstName || ""} ${user.lastName || ""}`,
           timestamp: user.createdAt || new Date(),
-          user: user.email
+          user: user.email,
         })),
-        ...recentEvents.map(event => ({
+        ...recentEvents.map((event) => ({
           id: event._id,
-          type: 'event_created',
+          type: "event_created",
           message: `New event created: ${event.title}`,
           timestamp: event.createdAt || new Date(),
-          user: event.organizerId
-        }))
-      ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 10);
-      
+          user: event.organizerId,
+        })),
+      ]
+        .sort(
+          (a, b) =>
+            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
+        )
+        .slice(0, 10);
+
       res.json(activities);
     } catch (error) {
       console.error("Error fetching admin activities:", error);
@@ -1395,30 +1487,36 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   });
 
   // Admin User Management Actions
-  
+
   // Get single user details
   app.get("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(req.params.userId)) {
         return res.status(400).json({ message: "Invalid user ID format" });
       }
-      
-      const user = await mongoStorage.db.collection("auth_users").findOne({ _id: new ObjectId(req.params.userId) });
-      
+
+      const user = await mongoStorage.db
+        .collection("auth_users")
+        .findOne({ _id: new ObjectId(req.params.userId) });
+
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({
         id: user._id,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'N/A',
+        name: `${user.firstName || ""} ${user.lastName || ""}`.trim() || "N/A",
         email: user.email,
-        role: user.role || 'attendee',
-        status: user.suspended ? 'suspended' : (user.emailVerified ? 'active' : 'pending'),
+        role: user.role || "attendee",
+        status: user.suspended
+          ? "suspended"
+          : user.emailVerified
+            ? "active"
+            : "pending",
         verified: user.emailVerified && user.phoneVerified,
         joinDate: user.createdAt || new Date(),
         lastLogin: user.lastLogin || new Date(),
@@ -1426,18 +1524,18 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         lastName: user.lastName,
         phoneNumber: user.phoneNumber,
         emailVerified: user.emailVerified,
-        phoneVerified: user.phoneVerified
+        phoneVerified: user.phoneVerified,
       });
     } catch (error) {
       console.error("Error fetching user details:", error);
-      
+
       // Force reconnection on error
       try {
         await mongoStorage.connect();
       } catch (reconnectError) {
         console.error("Reconnection failed:", reconnectError);
       }
-      
+
       res.status(500).json({ message: "Failed to fetch user details" });
     }
   });
@@ -1446,38 +1544,40 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(req.params.userId)) {
         return res.status(400).json({ message: "Invalid user ID format" });
       }
-      
+
       const { firstName, lastName, role, status } = req.body;
-      
+
       const updateData = {
         firstName,
         lastName,
         role,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      
+
       // Handle status changes
-      if (status === 'active') {
+      if (status === "active") {
         updateData.emailVerified = true;
-      } else if (status === 'suspended') {
+      } else if (status === "suspended") {
         updateData.suspended = true;
       }
-      
-      const result = await mongoStorage.db.collection("auth_users").updateOne(
-        { _id: new ObjectId(req.params.userId) },
-        { $set: updateData }
-      );
-      
+
+      const result = await mongoStorage.db
+        .collection("auth_users")
+        .updateOne(
+          { _id: new ObjectId(req.params.userId) },
+          { $set: updateData },
+        );
+
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ message: "User updated successfully" });
     } catch (error) {
       console.error("Error updating user:", error);
@@ -1489,19 +1589,21 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/users/:userId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(req.params.userId)) {
         return res.status(400).json({ message: "Invalid user ID format" });
       }
-      
-      const result = await mongoStorage.db.collection("auth_users").deleteOne({ _id: new ObjectId(req.params.userId) });
-      
+
+      const result = await mongoStorage.db
+        .collection("auth_users")
+        .deleteOne({ _id: new ObjectId(req.params.userId) });
+
       if (result.deletedCount === 0) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ message: "User deleted successfully" });
     } catch (error) {
       console.error("Error deleting user:", error);
@@ -1513,38 +1615,40 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId/status", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(req.params.userId)) {
         return res.status(400).json({ message: "Invalid user ID format" });
       }
-      
+
       const { status } = req.body;
-      
+
       const updateData = {
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      
-      if (status === 'active') {
+
+      if (status === "active") {
         updateData.emailVerified = true;
         updateData.suspended = false;
-      } else if (status === 'suspended') {
+      } else if (status === "suspended") {
         updateData.suspended = true;
-      } else if (status === 'pending') {
+      } else if (status === "pending") {
         updateData.emailVerified = false;
         updateData.suspended = false;
       }
-      
-      const result = await mongoStorage.db.collection("auth_users").updateOne(
-        { _id: new ObjectId(req.params.userId) },
-        { $set: updateData }
-      );
-      
+
+      const result = await mongoStorage.db
+        .collection("auth_users")
+        .updateOne(
+          { _id: new ObjectId(req.params.userId) },
+          { $set: updateData },
+        );
+
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ message: "User status updated successfully" });
     } catch (error) {
       console.error("Error updating user status:", error);
@@ -1556,29 +1660,29 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/users/:userId/role", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Validate ObjectId format
       if (!ObjectId.isValid(req.params.userId)) {
         return res.status(400).json({ message: "Invalid user ID format" });
       }
-      
+
       const { role } = req.body;
-      
+
       const result = await mongoStorage.db.collection("auth_users").updateOne(
         { _id: new ObjectId(req.params.userId) },
-        { 
-          $set: { 
+        {
+          $set: {
             role,
-            updatedAt: new Date()
-          }
-        }
+            updatedAt: new Date(),
+          },
+        },
       );
-      
+
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "User not found" });
       }
-      
+
       res.json({ message: "User role updated successfully" });
     } catch (error) {
       console.error("Error updating user role:", error);
@@ -1590,32 +1694,38 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/users", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       const { email, firstName, lastName, role, password } = req.body;
-      
+
       // Check if user already exists
-      const existingUser = await mongoStorage.db.collection("auth_users").findOne({ email });
+      const existingUser = await mongoStorage.db
+        .collection("auth_users")
+        .findOne({ email });
       if (existingUser) {
-        return res.status(400).json({ message: "User with this email already exists" });
+        return res
+          .status(400)
+          .json({ message: "User with this email already exists" });
       }
-      
+
       // Create new user
       const newUser = {
         _id: new Date().getTime().toString(),
         email,
         firstName,
         lastName,
-        role: role || 'attendee',
+        role: role || "attendee",
         password: await bcrypt.hash(password, 12),
         emailVerified: true,
         phoneVerified: false,
         createdAt: new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      
+
       await mongoStorage.db.collection("auth_users").insertOne(newUser);
-      
-      res.status(201).json({ message: "User created successfully", userId: newUser._id });
+
+      res
+        .status(201)
+        .json({ message: "User created successfully", userId: newUser._id });
     } catch (error) {
       console.error("Error creating user:", error);
       res.status(500).json({ message: "Failed to create user" });
@@ -1623,18 +1733,20 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   });
 
   // Admin Event Management Actions
-  
+
   // Get single event details
   app.get("/api/admin/events/:eventId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const event = await mongoStorage.db.collection("events").findOne({ _id: req.params.eventId });
-      
+
+      const event = await mongoStorage.db
+        .collection("events")
+        .findOne({ _id: req.params.eventId });
+
       if (!event) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       res.json({
         id: event._id,
         title: event.title,
@@ -1649,7 +1761,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         organizer: event.organizer,
         organizerId: event.organizerId,
         category: event.category,
-        imageUrl: event.imageUrl
+        imageUrl: event.imageUrl,
       });
     } catch (error) {
       console.error("Error fetching event details:", error);
@@ -1661,9 +1773,17 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/events/:eventId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const { title, description, venue, startDate, endDate, status, category } = req.body;
-      
+
+      const {
+        title,
+        description,
+        venue,
+        startDate,
+        endDate,
+        status,
+        category,
+      } = req.body;
+
       const updateData = {
         title,
         description,
@@ -1672,18 +1792,17 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         endDate: new Date(endDate),
         status,
         category,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
-      
-      const result = await mongoStorage.db.collection("events").updateOne(
-        { _id: req.params.eventId },
-        { $set: updateData }
-      );
-      
+
+      const result = await mongoStorage.db
+        .collection("events")
+        .updateOne({ _id: req.params.eventId }, { $set: updateData });
+
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       res.json({ message: "Event updated successfully" });
     } catch (error) {
       console.error("Error updating event:", error);
@@ -1695,13 +1814,15 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.delete("/api/admin/events/:eventId", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
-      const result = await mongoStorage.db.collection("events").deleteOne({ _id: req.params.eventId });
-      
+
+      const result = await mongoStorage.db
+        .collection("events")
+        .deleteOne({ _id: req.params.eventId });
+
       if (result.deletedCount === 0) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       res.json({ message: "Event deleted successfully" });
     } catch (error) {
       console.error("Error deleting event:", error);
@@ -1713,23 +1834,23 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/events/:eventId/status", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       const { status } = req.body;
-      
+
       const result = await mongoStorage.db.collection("events").updateOne(
         { _id: req.params.eventId },
-        { 
-          $set: { 
+        {
+          $set: {
             status,
-            updatedAt: new Date()
-          }
-        }
+            updatedAt: new Date(),
+          },
+        },
       );
-      
+
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       res.json({ message: "Event status updated successfully" });
     } catch (error) {
       console.error("Error updating event status:", error);
@@ -1741,33 +1862,39 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/events/:eventId/bookings", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       const { eventId } = req.params;
-      
+
       // Find all bookings for this event
-      const bookings = await mongoStorage.db.collection("bookings").find({ 
-        eventId: eventId 
-      }).sort({ bookingDate: -1 }).toArray();
-      
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({
+          eventId: eventId,
+        })
+        .sort({ bookingDate: -1 })
+        .toArray();
+
       // Transform the data for frontend display
-      const formattedBookings = bookings.map(booking => ({
+      const formattedBookings = bookings.map((booking) => ({
         _id: booking._id,
         bookingId: booking.bookingId,
         eventId: booking.eventId,
         eventTitle: booking.eventTitle,
-        userName: booking.userName || 'Guest User',
-        userEmail: booking.userEmail || 'guest@example.com',
+        userName: booking.userName || "Guest User",
+        userEmail: booking.userEmail || "guest@example.com",
         totalAmount: booking.totalAmount || 0,
-        currency: booking.currency || 'USD',
-        status: booking.status || 'confirmed',
+        currency: booking.currency || "USD",
+        status: booking.status || "confirmed",
         bookingDate: booking.bookingDate || booking.createdAt,
         paymentIntentId: booking.paymentIntentId,
         ticketDetails: booking.ticketDetails || [],
-        createdAt: booking.createdAt
+        createdAt: booking.createdAt,
       }));
-      
-      console.log(`Found ${formattedBookings.length} bookings for event ${eventId}`);
-      
+
+      console.log(
+        `Found ${formattedBookings.length} bookings for event ${eventId}`,
+      );
+
       res.json(formattedBookings);
     } catch (error) {
       console.error("Error fetching event bookings:", error);
@@ -1781,51 +1908,58 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/test/bookings", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const bookings = await mongoStorage.db.collection('bookings').find({}).limit(10).toArray();
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({})
+        .limit(10)
+        .toArray();
       res.json({
         count: bookings.length,
-        bookings: bookings.map(b => ({
+        bookings: bookings.map((b) => ({
           id: b._id,
           eventTitle: b.eventTitle,
           attendeeName: b.attendeeName,
           status: b.status,
-          amount: b.totalAmount
-        }))
+          amount: b.totalAmount,
+        })),
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // TEMPORARY: Organizer bookings without authentication for testing  
+  // TEMPORARY: Organizer bookings without authentication for testing
   app.get("/api/test/organizer-bookings-simple", async (req, res) => {
     try {
       await mongoStorage.connect();
-      const bookings = await mongoStorage.db.collection('bookings').find({}).toArray();
-      
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({})
+        .toArray();
+
       // Group by event
       const groupedBookings = bookings.reduce((acc, booking) => {
-        const eventTitle = booking.eventTitle || 'Unknown Event';
+        const eventTitle = booking.eventTitle || "Unknown Event";
         if (!acc[eventTitle]) acc[eventTitle] = [];
         acc[eventTitle].push(booking);
         return acc;
       }, {});
 
       // Return bookings in the format expected by the frontend
-      const formattedBookings = bookings.map(b => ({
+      const formattedBookings = bookings.map((b) => ({
         _id: b._id,
         bookingId: b.bookingId,
         eventTitle: b.eventTitle,
         attendeeName: b.attendeeName,
         attendeeEmail: b.attendeeEmail,
         status: b.status,
-        paymentStatus: b.paymentStatus || 'paid',
+        paymentStatus: b.paymentStatus || "paid",
         totalAmount: b.totalAmount,
         amount: b.totalAmount, // Fallback for older code
         bookingDate: b.bookingDate,
-        createdAt: b.createdAt
+        createdAt: b.createdAt,
       }));
-      
+
       res.json(formattedBookings);
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -1836,60 +1970,73 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/test/organization-earnings-simple", async (req, res) => {
     try {
       await mongoStorage.connect();
-      
+
       // Fetch all bookings from the database
-      const bookings = await mongoStorage.db.collection('bookings').find({}).toArray();
-      console.log(`Found ${bookings.length} total bookings for earnings calculation`);
-      
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({})
+        .toArray();
+      console.log(
+        `Found ${bookings.length} total bookings for earnings calculation`,
+      );
+
       // Group bookings by event title
       const eventGroups = bookings.reduce((acc, booking) => {
-        const eventTitle = booking.eventTitle || 'Unknown Event';
+        const eventTitle = booking.eventTitle || "Unknown Event";
         if (!acc[eventTitle]) {
           acc[eventTitle] = [];
         }
         acc[eventTitle].push(booking);
         return acc;
       }, {});
-      
+
       // Calculate earnings per event
-      const eventEarnings = Object.entries(eventGroups).map(([eventTitle, eventBookings]) => {
-        const revenue = eventBookings.reduce((total, booking) => {
-          return total + (booking.totalAmount || booking.amount || 0);
-        }, 0);
-        
-        const ticketsSold = eventBookings.length; // Each booking is at least 1 ticket
-        
-        return {
-          title: eventTitle,
-          revenue: revenue,
-          ticketsSold: ticketsSold,
-          bookingsCount: eventBookings.length,
-          createdAt: eventBookings[0]?.createdAt || new Date()
-        };
-      });
-      
+      const eventEarnings = Object.entries(eventGroups).map(
+        ([eventTitle, eventBookings]) => {
+          const revenue = eventBookings.reduce((total, booking) => {
+            return total + (booking.totalAmount || booking.amount || 0);
+          }, 0);
+
+          const ticketsSold = eventBookings.length; // Each booking is at least 1 ticket
+
+          return {
+            title: eventTitle,
+            revenue: revenue,
+            ticketsSold: ticketsSold,
+            bookingsCount: eventBookings.length,
+            createdAt: eventBookings[0]?.createdAt || new Date(),
+          };
+        },
+      );
+
       // Calculate totals
-      const totalRevenue = eventEarnings.reduce((total, event) => total + event.revenue, 0);
-      const totalTicketsSold = eventEarnings.reduce((total, event) => total + event.ticketsSold, 0);
+      const totalRevenue = eventEarnings.reduce(
+        (total, event) => total + event.revenue,
+        0,
+      );
+      const totalTicketsSold = eventEarnings.reduce(
+        (total, event) => total + event.ticketsSold,
+        0,
+      );
       const totalEvents = eventEarnings.length;
-      
+
       const earningsData = {
         totalRevenue,
         totalTicketsSold,
         totalEvents,
-        events: eventEarnings.sort((a, b) => b.revenue - a.revenue) // Sort by revenue descending
+        events: eventEarnings.sort((a, b) => b.revenue - a.revenue), // Sort by revenue descending
       };
-      
-      console.log('Organization earnings calculated:', {
+
+      console.log("Organization earnings calculated:", {
         totalRevenue: earningsData.totalRevenue,
         totalTicketsSold: earningsData.totalTicketsSold,
         totalEvents: earningsData.totalEvents,
-        eventTitles: earningsData.events.map(e => e.title)
+        eventTitles: earningsData.events.map((e) => e.title),
       });
-      
+
       res.json(earningsData);
     } catch (error) {
-      console.error('Organization earnings calculation error:', error);
+      console.error("Organization earnings calculation error:", error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -1937,19 +2084,23 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       const { amount, eventId, eventTitle, ticketDetails } = req.body;
-      
+
       if (!amount || amount <= 0) {
         return res.status(400).json({ error: "Invalid amount" });
       }
 
       const connected = await mongoStorage.connect();
       if (!connected) {
-        return res.status(503).json({ error: "Database temporarily unavailable" });
+        return res
+          .status(503)
+          .json({ error: "Database temporarily unavailable" });
       }
 
       // Validate event exists and hasn't expired
       if (eventId) {
-        const event = await mongoStorage.db.collection("events").findOne({ _id: eventId });
+        const event = await mongoStorage.db
+          .collection("events")
+          .findOne({ _id: eventId });
         if (!event) {
           return res.status(404).json({ error: "Event not found" });
         }
@@ -1959,8 +2110,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
           const currentDate = new Date();
           const eventEndDate = new Date(event.endDate);
           if (currentDate > eventEndDate) {
-            return res.status(400).json({ 
-              error: "This event is no longer available for booking as the last date has passed." 
+            return res.status(400).json({
+              error:
+                "This event is no longer available for booking as the last date has passed.",
             });
           }
         }
@@ -1972,19 +2124,19 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         metadata: {
           eventId: eventId || "",
           eventTitle: eventTitle || "",
-          ticketDetails: JSON.stringify(ticketDetails || {})
-        }
+          ticketDetails: JSON.stringify(ticketDetails || {}),
+        },
       });
 
-      res.json({ 
+      res.json({
         clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
+        paymentIntentId: paymentIntent.id,
       });
     } catch (error: any) {
       console.error("Error creating payment intent:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create payment intent",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -1993,25 +2145,44 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
       const { items, amount, userEmail, userName } = req.body;
-      
-      console.log('Creating multi-event payment intent:', {
+
+      console.log("Creating multi-event payment intent:", {
         items,
         amount,
         userEmail,
-        userName
+        userName,
       });
 
       const connected = await mongoStorage.connect();
       if (!connected) {
-        return res.status(503).json({ error: "Database temporarily unavailable" });
+        return res
+          .status(503)
+          .json({ error: "Database temporarily unavailable" });
       }
 
       // Validate all events in the cart are not expired
       for (const item of items) {
         if (item.eventId) {
-          const event = await mongoStorage.db.collection("events").findOne({ _id: item.eventId });
+          let event = null;
+
+          try {
+            const { ObjectId } = await import("mongodb");
+            if (ObjectId.isValid(item.eventId)) {
+              event = await mongoStorage.db
+                .collection("events")
+                .findOne({ _id: new ObjectId(item.eventId) });
+            }
+          } catch (e) {
+            console.warn(
+              `Error validating ObjectId for eventId: ${item.eventId}`,
+              e,
+            );
+          }
+
           if (!event) {
-            return res.status(404).json({ error: `Event "${item.eventTitle}" not found` });
+            return res
+              .status(404)
+              .json({ error: `Event "${item.eventTitle}" not found` });
           }
 
           // Check if event has expired
@@ -2019,14 +2190,18 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
             const currentDate = new Date();
             const eventEndDate = new Date(event.endDate);
             if (currentDate > eventEndDate) {
-              return res.status(400).json({ 
-                error: `Event "${item.eventTitle}" is no longer available for booking as the last date has passed.` 
+              return res.status(400).json({
+                error: `Event "${item.eventTitle}" is no longer available for booking as the last date has passed.`,
               });
             }
           }
         }
       }
-      
+      // Before payment intent creation
+      if (!stripe) {
+        console.error("Stripe is not initialized. Check STRIPE_SECRET_KEY.");
+        return res.status(503).json({ error: "Stripe is not configured" });
+      }
       // Create payment intent with line items metadata
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
@@ -2035,19 +2210,19 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
           userEmail: userEmail || "",
           userName: userName || "",
           itemsCount: items.length.toString(),
-          items: JSON.stringify(items)
-        }
+          items: JSON.stringify(items),
+        },
       });
 
-      res.json({ 
+      res.json({
         clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
+        paymentIntentId: paymentIntent.id,
       });
     } catch (error: any) {
       console.error("Error creating multi-event payment intent:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create payment intent",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2055,53 +2230,59 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   // Save multi-event booking after successful payment
   app.post("/api/save-multi-event-booking", async (req, res) => {
     try {
-      const { paymentIntentId, cartItems, userEmail, userName, totalAmount } = req.body;
-      
-      console.log('Saving multi-event booking:', {
+      const { paymentIntentId, cartItems, userEmail, userName, totalAmount } =
+        req.body;
+
+      console.log("Saving multi-event booking:", {
         paymentIntentId,
         cartItems,
         userEmail,
         userName,
-        totalAmount
+        totalAmount,
       });
-      
+
       if (!paymentIntentId || !cartItems || cartItems.length === 0) {
-        return res.status(400).json({ error: "Missing required booking information" });
+        return res
+          .status(400)
+          .json({ error: "Missing required booking information" });
       }
 
       // Verify payment was successful
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
-      if (paymentIntent.status !== 'succeeded') {
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== "succeeded") {
         return res.status(400).json({ error: "Payment not completed" });
       }
 
       // Create separate booking record for each event
       const bookings = [];
       await mongoStorage.connect();
-      
+
       for (const item of cartItems) {
         const booking = {
           bookingId: `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           paymentIntentId,
           eventId: item.eventId,
           eventTitle: item.eventTitle,
-          ticketDetails: [{
-            name: item.name,
-            price: item.price,
-            quantity: item.quantity,
-            total: item.total
-          }],
+          ticketDetails: [
+            {
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              total: item.total,
+            },
+          ],
           userEmail: userEmail || "guest@example.com",
           userName: userName || "Guest User",
           totalAmount: item.total,
           currency: paymentIntent.currency,
           status: "confirmed",
           bookingDate: new Date(),
-          createdAt: new Date()
+          createdAt: new Date(),
         };
 
-        console.log('Creating booking record:', booking);
+        console.log("Creating booking record:", booking);
 
         // Generate QR code for this booking
         const qrCode = await generateQRCode(booking);
@@ -2110,36 +2291,46 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         }
 
         // Save booking to MongoDB
-        const result = await mongoStorage.db.collection("bookings").insertOne(booking);
+        const result = await mongoStorage.db
+          .collection("bookings")
+          .insertOne(booking);
         bookings.push({ ...booking, _id: result.insertedId });
 
         // Send confirmation email for this booking
         try {
           await sendConfirmationEmail(booking, qrCode);
         } catch (emailError) {
-          console.error('Email sending failed for booking:', booking.bookingId, emailError);
+          console.error(
+            "Email sending failed for booking:",
+            booking.bookingId,
+            emailError,
+          );
         }
 
         // Trigger notification system
         try {
           await triggerTicketPurchaseNotification(booking);
         } catch (notificationError) {
-          console.error('Notification trigger failed for booking:', booking.bookingId, notificationError);
+          console.error(
+            "Notification trigger failed for booking:",
+            booking.bookingId,
+            notificationError,
+          );
         }
       }
 
-      console.log('All bookings saved successfully:', bookings.length);
-      
+      console.log("All bookings saved successfully:", bookings.length);
+
       res.json({
         success: true,
         bookings: bookings,
-        message: `${bookings.length} bookings confirmed successfully`
+        message: `${bookings.length} bookings confirmed successfully`,
       });
     } catch (error: any) {
       console.error("Error saving multi-event booking:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to save bookings",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2147,25 +2338,35 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   // Save ticket booking after successful payment
   app.post("/api/save-booking", async (req, res) => {
     try {
-      const { paymentIntentId, eventId, eventTitle, ticketDetails, userEmail, userName } = req.body;
-      
-      console.log('Saving booking with received data:', {
+      const {
         paymentIntentId,
         eventId,
         eventTitle,
         ticketDetails,
         userEmail,
-        userName
+        userName,
+      } = req.body;
+
+      console.log("Saving booking with received data:", {
+        paymentIntentId,
+        eventId,
+        eventTitle,
+        ticketDetails,
+        userEmail,
+        userName,
       });
-      
+
       if (!paymentIntentId || !eventId) {
-        return res.status(400).json({ error: "Missing required booking information" });
+        return res
+          .status(400)
+          .json({ error: "Missing required booking information" });
       }
 
       // Verify payment was successful
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
-      if (paymentIntent.status !== 'succeeded') {
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== "succeeded") {
         return res.status(400).json({ error: "Payment not completed" });
       }
 
@@ -2182,10 +2383,10 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         currency: paymentIntent.currency,
         status: "confirmed",
         bookingDate: new Date(),
-        createdAt: new Date()
+        createdAt: new Date(),
       };
 
-      console.log('Creating booking record:', booking);
+      console.log("Creating booking record:", booking);
 
       // Generate QR code for this booking
       const qrCode = await generateQRCode(booking);
@@ -2195,34 +2396,44 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       // Save to MongoDB
       await mongoStorage.connect();
-      const result = await mongoStorage.db.collection("bookings").insertOne(booking);
-      
-      console.log('Booking saved successfully with ID:', result.insertedId);
+      const result = await mongoStorage.db
+        .collection("bookings")
+        .insertOne(booking);
+
+      console.log("Booking saved successfully with ID:", result.insertedId);
 
       // Send confirmation email
       try {
         await sendConfirmationEmail(booking, qrCode);
       } catch (emailError) {
-        console.error('Email sending failed for booking:', booking.bookingId, emailError);
+        console.error(
+          "Email sending failed for booking:",
+          booking.bookingId,
+          emailError,
+        );
       }
 
       // Trigger notification system
       try {
         await triggerTicketPurchaseNotification(booking);
       } catch (notificationError) {
-        console.error('Notification trigger failed for booking:', booking.bookingId, notificationError);
+        console.error(
+          "Notification trigger failed for booking:",
+          booking.bookingId,
+          notificationError,
+        );
       }
-      
+
       res.json({
         success: true,
         bookingId: booking.bookingId,
-        booking: { ...booking, _id: result.insertedId }
+        booking: { ...booking, _id: result.insertedId },
       });
     } catch (error: any) {
       console.error("Error saving booking:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to save booking",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2231,9 +2442,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/attendee/bookings", async (req, res) => {
     try {
       const { userEmail } = req.query;
-      
-      console.log('Fetching bookings for email:', userEmail);
-      
+
+      console.log("Fetching bookings for email:", userEmail);
+
       if (!userEmail) {
         return res.status(400).json({ error: "User email is required" });
       }
@@ -2246,8 +2457,8 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
           .toArray();
       });
 
-      console.log('Found bookings:', bookings.length);
-      console.log('Bookings data:', bookings);
+      console.log("Found bookings:", bookings.length);
+      console.log("Bookings data:", bookings);
 
       res.json({ bookings });
     } catch (error: any) {
@@ -2261,7 +2472,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/booking/:bookingId", async (req, res) => {
     try {
       const { bookingId } = req.params;
-      
+
       await mongoStorage.connect();
       const booking = await mongoStorage.db
         .collection("bookings")
@@ -2274,9 +2485,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       res.json({ booking });
     } catch (error: any) {
       console.error("Error fetching booking:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to fetch booking",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2285,7 +2496,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/ticket/download/:bookingId", async (req, res) => {
     try {
       const { bookingId } = req.params;
-      
+
       // Get booking details
       await mongoStorage.connect();
       const booking = await mongoStorage.db
@@ -2297,189 +2508,210 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       }
 
       // Generate PDF content using jsPDF
-      const { jsPDF } = await import('jspdf');
+      const { jsPDF } = await import("jspdf");
       const doc = new jsPDF();
-      
+
       // Set page background color
       doc.setFillColor(248, 250, 252); // Light gray background
-      doc.rect(0, 0, 210, 297, 'F'); // Fill entire page
-      
+      doc.rect(0, 0, 210, 297, "F"); // Fill entire page
+
       // Main ticket container with rounded corners effect
       doc.setFillColor(255, 255, 255); // White background
       doc.setDrawColor(226, 232, 240); // Light border
       doc.setLineWidth(0.5);
-      doc.roundedRect(15, 15, 180, 260, 8, 8, 'FD'); // Rounded rectangle with fill and border
-      
+      doc.roundedRect(15, 15, 180, 260, 8, 8, "FD"); // Rounded rectangle with fill and border
+
       // Header section with gradient effect
       doc.setFillColor(99, 102, 241); // Blue gradient start
-      doc.roundedRect(20, 20, 170, 40, 6, 6, 'F');
-      
+      doc.roundedRect(20, 20, 170, 40, 6, 6, "F");
+
       // EVENT TRIBE Logo
       doc.setTextColor(255, 255, 255); // White text
       doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.text('EVENT TRIBE', 105, 35, { align: 'center' });
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("EVENT TRIBE", 105, 35, { align: "center" });
+
       // Decorative line under logo
       doc.setDrawColor(255, 255, 255);
       doc.setLineWidth(1);
       doc.line(70, 45, 140, 45);
-      
+
       // Event title with modern styling
       doc.setFillColor(245, 245, 245); // Light gray background for event title
-      doc.roundedRect(25, 70, 160, 25, 4, 4, 'F');
+      doc.roundedRect(25, 70, 160, 25, 4, 4, "F");
       doc.setTextColor(30, 41, 59); // Dark text
       doc.setFontSize(20);
-      doc.setFont('helvetica', 'bold');
-      doc.text(booking.eventTitle, 105, 87, { align: 'center' });
-      
+      doc.setFont("helvetica", "bold");
+      doc.text(booking.eventTitle, 105, 87, { align: "center" });
+
       // Customer information section
       let yPos = 110;
       doc.setFillColor(248, 250, 252); // Very light background
-      doc.roundedRect(25, yPos, 160, 70, 4, 4, 'F');
-      
+      doc.roundedRect(25, yPos, 160, 70, 4, 4, "F");
+
       // Section header
       doc.setTextColor(99, 102, 241); // Blue text
       doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('BOOKING INFORMATION', 35, yPos + 15);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("BOOKING INFORMATION", 35, yPos + 15);
+
       // Booking details with modern layout
       doc.setTextColor(71, 85, 105); // Medium gray text
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
+      doc.setFont("helvetica", "normal");
+
       // Left column
-      doc.setFont('helvetica', 'bold');
-      doc.text('Booking ID:', 35, yPos + 30);
-      doc.text('Customer:', 35, yPos + 40);
-      doc.text('Email:', 35, yPos + 50);
-      doc.text('Date:', 35, yPos + 60);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("Booking ID:", 35, yPos + 30);
+      doc.text("Customer:", 35, yPos + 40);
+      doc.text("Email:", 35, yPos + 50);
+      doc.text("Date:", 35, yPos + 60);
+
       // Right column values
-      doc.setFont('helvetica', 'normal');
+      doc.setFont("helvetica", "normal");
       doc.text(booking.bookingId, 80, yPos + 30);
       doc.text(booking.userName, 80, yPos + 40);
       doc.text(booking.userEmail, 80, yPos + 50);
-      doc.text(new Date(booking.bookingDate).toLocaleDateString(), 80, yPos + 60);
-      
+      doc.text(
+        new Date(booking.bookingDate).toLocaleDateString(),
+        80,
+        yPos + 60,
+      );
+
       // Status badge
-      const statusColor = booking.status.toLowerCase() === 'confirmed' ? [34, 197, 94] : [239, 68, 68];
+      const statusColor =
+        booking.status.toLowerCase() === "confirmed"
+          ? [34, 197, 94]
+          : [239, 68, 68];
       doc.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-      doc.roundedRect(140, yPos + 25, 35, 12, 6, 6, 'F');
+      doc.roundedRect(140, yPos + 25, 35, 12, 6, 6, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(9);
-      doc.setFont('helvetica', 'bold');
-      doc.text(booking.status.toUpperCase(), 157.5, yPos + 33, { align: 'center' });
-      
+      doc.setFont("helvetica", "bold");
+      doc.text(booking.status.toUpperCase(), 157.5, yPos + 33, {
+        align: "center",
+      });
+
       // Ticket details section
       yPos = 190;
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(25, yPos, 160, 50, 4, 4, 'F');
-      
+      doc.roundedRect(25, yPos, 160, 50, 4, 4, "F");
+
       doc.setTextColor(99, 102, 241);
       doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TICKET DETAILS', 35, yPos + 15);
-      
+      doc.setFont("helvetica", "bold");
+      doc.text("TICKET DETAILS", 35, yPos + 15);
+
       // Ticket items
       doc.setTextColor(71, 85, 105);
       doc.setFontSize(10);
       let ticketYPos = yPos + 25;
-      
+
       if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
         booking.ticketDetails.forEach((ticket: any) => {
-          doc.setFont('helvetica', 'normal');
+          doc.setFont("helvetica", "normal");
           doc.text(`${ticket.name} x ${ticket.quantity}`, 35, ticketYPos);
-          doc.setFont('helvetica', 'bold');
+          doc.setFont("helvetica", "bold");
           doc.text(`$${ticket.total.toFixed(2)}`, 155, ticketYPos);
           ticketYPos += 10;
         });
       }
-      
+
       // Total amount with highlight
       doc.setFillColor(99, 102, 241);
-      doc.roundedRect(140, ticketYPos, 40, 15, 6, 6, 'F');
+      doc.roundedRect(140, ticketYPos, 40, 15, 6, 6, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`$${booking.totalAmount.toFixed(2)}`, 160, ticketYPos + 10, { align: 'center' });
-      
+      doc.setFont("helvetica", "bold");
+      doc.text(`$${booking.totalAmount.toFixed(2)}`, 160, ticketYPos + 10, {
+        align: "center",
+      });
+
       // QR Code section
       if (booking.qrCode) {
         try {
           yPos = 250;
-          
+
           // QR Code container
           doc.setFillColor(255, 255, 255);
           doc.setDrawColor(226, 232, 240);
-          doc.roundedRect(25, yPos, 80, 60, 4, 4, 'FD');
-          
+          doc.roundedRect(25, yPos, 80, 60, 4, 4, "FD");
+
           // QR Code
-          const qrCodeImage = booking.qrCode.replace(/^data:image\/png;base64,/, '');
-          doc.addImage(qrCodeImage, 'PNG', 35, yPos + 5, 40, 40);
-          
+          const qrCodeImage = booking.qrCode.replace(
+            /^data:image\/png;base64,/,
+            "",
+          );
+          doc.addImage(qrCodeImage, "PNG", 35, yPos + 5, 40, 40);
+
           // QR Code instructions
           doc.setTextColor(71, 85, 105);
           doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.text('Present this QR code', 55, yPos + 50, { align: 'center' });
-          doc.text('at the event entrance', 55, yPos + 55, { align: 'center' });
-          
+          doc.setFont("helvetica", "normal");
+          doc.text("Present this QR code", 55, yPos + 50, { align: "center" });
+          doc.text("at the event entrance", 55, yPos + 55, { align: "center" });
+
           // Event entry instructions
           doc.setFillColor(254, 249, 195); // Light yellow background
-          doc.roundedRect(110, yPos, 75, 60, 4, 4, 'F');
-          
+          doc.roundedRect(110, yPos, 75, 60, 4, 4, "F");
+
           doc.setTextColor(146, 64, 14); // Orange text
           doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.text('IMPORTANT', 147.5, yPos + 15, { align: 'center' });
-          
+          doc.setFont("helvetica", "bold");
+          doc.text("IMPORTANT", 147.5, yPos + 15, { align: "center" });
+
           doc.setTextColor(120, 53, 15);
           doc.setFontSize(8);
-          doc.setFont('helvetica', 'normal');
-          doc.text('• Arrive 30 minutes early', 115, yPos + 25);
-          doc.text('• Bring a valid ID', 115, yPos + 32);
-          doc.text('• Keep this ticket safe', 115, yPos + 39);
-          doc.text('• No refunds after event', 115, yPos + 46);
-          
+          doc.setFont("helvetica", "normal");
+          doc.text("• Arrive 30 minutes early", 115, yPos + 25);
+          doc.text("• Bring a valid ID", 115, yPos + 32);
+          doc.text("• Keep this ticket safe", 115, yPos + 39);
+          doc.text("• No refunds after event", 115, yPos + 46);
         } catch (qrError) {
-          console.error('Error adding QR code to PDF:', qrError);
+          console.error("Error adding QR code to PDF:", qrError);
         }
       } else {
         yPos = 250;
         doc.setFillColor(254, 249, 195);
-        doc.roundedRect(25, yPos, 160, 25, 4, 4, 'F');
+        doc.roundedRect(25, yPos, 160, 25, 4, 4, "F");
         doc.setTextColor(146, 64, 14);
         doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Present this ticket at the event entrance', 105, yPos + 15, { align: 'center' });
+        doc.setFont("helvetica", "bold");
+        doc.text("Present this ticket at the event entrance", 105, yPos + 15, {
+          align: "center",
+        });
       }
-      
+
       // Footer with decorative elements
       doc.setDrawColor(226, 232, 240);
       doc.setLineWidth(0.5);
       doc.line(25, 320, 185, 320);
-      
+
       doc.setTextColor(156, 163, 175);
       doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Thank you for choosing Event Tribe!', 105, 330, { align: 'center' });
-      doc.text('For support, contact us at support@eventtribe.com', 105, 335, { align: 'center' });
-      
+      doc.setFont("helvetica", "normal");
+      doc.text("Thank you for choosing Event Tribe!", 105, 330, {
+        align: "center",
+      });
+      doc.text("For support, contact us at support@eventtribe.com", 105, 335, {
+        align: "center",
+      });
+
       // Set response headers for PDF display (inline, not download)
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `inline; filename=ticket-${bookingId}.pdf`);
-      
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename=ticket-${bookingId}.pdf`,
+      );
+
       // Send PDF buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      const pdfBuffer = Buffer.from(doc.output("arraybuffer"));
       res.send(pdfBuffer);
-      
     } catch (error: any) {
       console.error("Error generating ticket PDF:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate ticket PDF",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2488,33 +2720,34 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/confirm-payment", async (req, res) => {
     try {
       const { paymentIntentId } = req.body;
-      
+
       if (!paymentIntentId) {
         return res.status(400).json({ error: "Payment intent ID is required" });
       }
 
-      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
-      
-      if (paymentIntent.status === 'succeeded') {
+      const paymentIntent =
+        await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status === "succeeded") {
         // Here you could save the payment details to your database
         // For now, we'll just return success
-        res.json({ 
+        res.json({
           success: true,
           status: paymentIntent.status,
           amount: paymentIntent.amount / 100,
-          currency: paymentIntent.currency
+          currency: paymentIntent.currency,
         });
       } else {
-        res.json({ 
+        res.json({
           success: false,
-          status: paymentIntent.status 
+          status: paymentIntent.status,
         });
       }
     } catch (error: any) {
       console.error("Error confirming payment:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to confirm payment",
-        message: error.message 
+        message: error.message,
       });
     }
   });
@@ -2525,34 +2758,47 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.post("/api/cart/add", async (req, res) => {
     try {
       const { userEmail, eventId, eventTitle, ticketType, quantity } = req.body;
-      
-      console.log("Add to cart request:", { userEmail, eventId, eventTitle, ticketType, quantity });
-      
+
+      console.log("Add to cart request:", {
+        userEmail,
+        eventId,
+        eventTitle,
+        ticketType,
+        quantity,
+      });
+
       if (!userEmail || !eventId || !eventTitle || !ticketType || !quantity) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       const connected = await mongoStorage.connect();
       if (!connected) {
-        return res.status(503).json({ error: "Database temporarily unavailable" });
+        return res
+          .status(503)
+          .json({ error: "Database temporarily unavailable" });
       }
 
       // Check if event exists and is not expired
-      const { ObjectId } = await import('mongodb');
-      
+      const { ObjectId } = await import("mongodb");
+
       // Handle both string and ObjectId formats
       let eventObjectId;
       try {
-        eventObjectId = typeof eventId === 'string' && ObjectId.isValid(eventId) 
-          ? new ObjectId(eventId) 
-          : eventId;
+        eventObjectId =
+          typeof eventId === "string" && ObjectId.isValid(eventId)
+            ? new ObjectId(eventId)
+            : eventId;
       } catch (error) {
         return res.status(400).json({ error: "Invalid event ID format" });
       }
 
-      const event = await mongoStorage.db.collection("events").findOne({ _id: eventObjectId });
+      const event = await mongoStorage.db
+        .collection("events")
+        .findOne({ _id: eventObjectId });
       if (!event) {
-        console.log(`Event not found for ID: ${eventId}, ObjectId: ${eventObjectId}`);
+        console.log(
+          `Event not found for ID: ${eventId}, ObjectId: ${eventObjectId}`,
+        );
         return res.status(404).json({ error: "Event not found" });
       }
 
@@ -2561,8 +2807,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         const currentDate = new Date();
         const eventEndDate = new Date(event.endDate);
         if (currentDate > eventEndDate) {
-          return res.status(400).json({ 
-            error: "This event is no longer available for booking as the last date has passed." 
+          return res.status(400).json({
+            error:
+              "This event is no longer available for booking as the last date has passed.",
           });
         }
       }
@@ -2571,7 +2818,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         eventId: eventObjectId, // Use the ObjectId for consistency
         eventTitle,
         ticketType,
-        quantity: parseInt(quantity)
+        quantity: parseInt(quantity),
       };
 
       const result = await mongoStorage.addToCart(userEmail, cartItem);
@@ -2586,12 +2833,12 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/cart/:userEmail", async (req, res) => {
     try {
       const { userEmail } = req.params;
-      
+
       const connected = await mongoStorage.connect();
       if (!connected) {
         return res.json({ items: [] });
       }
-      
+
       const cartItems = await mongoStorage.getCart(userEmail);
       res.json({ items: cartItems });
     } catch (error: any) {
@@ -2604,12 +2851,12 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.get("/api/cart/count/:userEmail", async (req, res) => {
     try {
       const { userEmail } = req.params;
-      
+
       const connected = await mongoStorage.connect();
       if (!connected) {
         return res.json({ count: 0 });
       }
-      
+
       const count = await mongoStorage.getCartCount(userEmail);
       res.json({ count });
     } catch (error: any) {
@@ -2622,13 +2869,17 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.put("/api/cart/update", async (req, res) => {
     try {
       const { userEmail, itemId, quantity } = req.body;
-      
+
       if (!userEmail || !itemId || quantity === undefined) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       await mongoStorage.connect();
-      const result = await mongoStorage.updateCartItem(userEmail, itemId, parseInt(quantity));
+      const result = await mongoStorage.updateCartItem(
+        userEmail,
+        itemId,
+        parseInt(quantity),
+      );
       res.json({ success: true, item: result });
     } catch (error: any) {
       console.error("Update cart error:", error);
@@ -2640,9 +2891,11 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.delete("/api/cart/remove", async (req, res) => {
     try {
       const { userEmail, itemId } = req.body;
-      
-      console.log(`[Cart API] Remove request - userEmail: ${userEmail}, itemId: ${itemId}`);
-      
+
+      console.log(
+        `[Cart API] Remove request - userEmail: ${userEmail}, itemId: ${itemId}`,
+      );
+
       if (!userEmail || !itemId) {
         console.log("[Cart API] Missing required fields");
         return res.status(400).json({ error: "Missing required fields" });
@@ -2650,14 +2903,17 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       await mongoStorage.connect();
       const result = await mongoStorage.removeFromCart(userEmail, itemId);
-      
+
       console.log(`[Cart API] Remove result: ${result}`);
-      
+
       if (result) {
         res.json({ success: true, deleted: true });
       } else {
         console.log("[Cart API] No item was deleted");
-        res.json({ success: false, error: "Item not found or already removed" });
+        res.json({
+          success: false,
+          error: "Item not found or already removed",
+        });
       }
     } catch (error: any) {
       console.error("Remove from cart error:", error);
@@ -2669,7 +2925,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
   app.delete("/api/cart/clear/:userEmail", async (req, res) => {
     try {
       const { userEmail } = req.params;
-      
+
       await mongoStorage.connect();
       await mongoStorage.clearCart(userEmail);
       res.json({ success: true });

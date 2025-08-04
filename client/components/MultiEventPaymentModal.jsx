@@ -1,25 +1,34 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { FiX, FiLoader } from 'react-icons/fi';
-import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import { useCart } from '../hooks/useCart';
-import { useAuth } from '../hooks/useAuth';
-import { toast } from 'react-hot-toast';
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { FiX, FiLoader } from "react-icons/fi";
+import {
+  Elements,
+  CardNumberElement,
+  CardExpiryElement,
+  CardCvcElement,
+  useStripe,
+  useElements,
+} from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
+import { useCart } from "../hooks/useCart";
+import { useAuth } from "../hooks/useAuth";
+import { toast } from "react-hot-toast";
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_placeholder');
+const stripePromise = loadStripe(
+  import.meta.env.VITE_STRIPE_PUBLIC_KEY || "pk_test_placeholder",
+);
 
 const CARD_ELEMENT_OPTIONS = {
   style: {
     base: {
-      fontSize: '16px',
-      color: '#fff',
-      '::placeholder': {
-        color: '#9ca3af',
+      fontSize: "16px",
+      color: "#fff",
+      "::placeholder": {
+        color: "#9ca3af",
       },
     },
     invalid: {
-      color: '#ef4444',
+      color: "#ef4444",
     },
   },
 };
@@ -45,24 +54,24 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
       const cartItems = getCartSummary();
       const totalAmount = getTotalPrice();
 
-      console.log('Processing multi-event payment:', {
+      console.log("Processing multi-event payment:", {
         cartItems,
         totalAmount,
         userEmail,
-        userName
+        userName,
       });
 
       // Create payment intent for multiple events
-      const response = await fetch('/api/create-multi-event-payment-intent', {
-        method: 'POST',
+      const response = await fetch("/api/create-multi-event-payment-intent", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           items: cartItems,
           amount: totalAmount,
           userEmail,
-          userName
+          userName,
         }),
       });
 
@@ -73,73 +82,79 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
       const data = await response.json();
       const { clientSecret, paymentIntentId } = data;
 
-      console.log('Multi-event payment intent created:', { clientSecret, paymentIntentId });
+      console.log("Multi-event payment intent created:", {
+        clientSecret,
+        paymentIntentId,
+      });
 
       if (!clientSecret) {
-        throw new Error('Failed to create payment intent');
+        throw new Error("Failed to create payment intent");
       }
 
       // Confirm payment
-      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardNumberElement),
-        }
-      });
+      const { error, paymentIntent } = await stripe.confirmCardPayment(
+        clientSecret,
+        {
+          payment_method: {
+            card: elements.getElement(CardNumberElement),
+          },
+        },
+      );
 
       if (error) {
-        console.error('Payment failed:', error);
-        toast.error(error.message || 'Payment failed');
-      } else if (paymentIntent.status === 'succeeded') {
+        console.error("Payment failed:", error);
+        toast.error(error.message || "Payment failed");
+      } else if (paymentIntent.status === "succeeded") {
         // Save multi-event booking to backend
         try {
-          console.log('Saving bookings with data:', {
+          console.log("Saving bookings with data:", {
             paymentIntentId: paymentIntent.id,
             items: cartItems,
             userEmail,
-            userName
+            userName,
           });
 
-          const bookingResponse = await fetch('/api/save-multi-event-booking', {
-            method: 'POST',
+          const bookingResponse = await fetch("/api/save-multi-event-booking", {
+            method: "POST",
             headers: {
-              'Content-Type': 'application/json',
+              "Content-Type": "application/json",
             },
             body: JSON.stringify({
               paymentIntentId: paymentIntent.id,
               items: cartItems,
               userEmail,
-              userName
+              userName,
             }),
           });
 
           const bookingData = await bookingResponse.json();
 
           if (bookingData.success) {
-            toast.success('Payment successful! All tickets confirmed.');
+            toast.success("Payment successful! All tickets confirmed.");
             clearCart();
             onSuccess({ ...paymentIntent, bookings: bookingData.bookings });
           } else {
-            throw new Error('Failed to save bookings');
+            throw new Error("Failed to save bookings");
           }
         } catch (bookingError) {
-          console.error('Booking save error:', bookingError);
-          toast.success('Payment successful!');
+          console.error("Booking save error:", bookingError);
+
           clearCart();
           onSuccess(paymentIntent);
         }
       }
     } catch (error) {
-      console.error('Payment error:', error);
-      toast.error('Payment failed. Please try again.');
+      console.error("Payment error:", error);
+      toast.error("Payment failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   const handleCardChange = (field) => (event) => {
-    setCardErrors(prev => ({
+    setCardErrors((prev) => ({
       ...prev,
-      [field]: event.error ? event.error.message : null
+      [field]: event.error ? event.error.message : null,
     }));
   };
 
@@ -175,8 +190,13 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
           <div className="bg-gray-800 rounded-lg p-4 mb-6">
             <h3 className="text-white font-semibold mb-3">Order Summary</h3>
             {cartItems.map((item, index) => (
-              <div key={index} className="flex justify-between items-center text-sm text-gray-300 mb-2">
-                <span>{item.eventTitle} - {item.name} x {item.quantity}</span>
+              <div
+                key={index}
+                className="flex justify-between items-center text-sm text-gray-300 mb-2"
+              >
+                <span>
+                  {item.eventTitle} - {item.name} x {item.quantity}
+                </span>
                 <span>${item.total.toFixed(2)}</span>
               </div>
             ))}
@@ -197,11 +217,13 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
               <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 focus-within:border-blue-500 transition-colors">
                 <CardNumberElement
                   options={CARD_ELEMENT_OPTIONS}
-                  onChange={handleCardChange('cardNumber')}
+                  onChange={handleCardChange("cardNumber")}
                 />
               </div>
               {cardErrors.cardNumber && (
-                <p className="text-red-400 text-sm mt-1">{cardErrors.cardNumber}</p>
+                <p className="text-red-400 text-sm mt-1">
+                  {cardErrors.cardNumber}
+                </p>
               )}
             </div>
 
@@ -213,11 +235,13 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
                 <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 focus-within:border-blue-500 transition-colors">
                   <CardExpiryElement
                     options={CARD_ELEMENT_OPTIONS}
-                    onChange={handleCardChange('cardExpiry')}
+                    onChange={handleCardChange("cardExpiry")}
                   />
                 </div>
                 {cardErrors.cardExpiry && (
-                  <p className="text-red-400 text-sm mt-1">{cardErrors.cardExpiry}</p>
+                  <p className="text-red-400 text-sm mt-1">
+                    {cardErrors.cardExpiry}
+                  </p>
                 )}
               </div>
 
@@ -228,11 +252,13 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
                 <div className="bg-gray-800 border border-gray-600 rounded-lg p-3 focus-within:border-blue-500 transition-colors">
                   <CardCvcElement
                     options={CARD_ELEMENT_OPTIONS}
-                    onChange={handleCardChange('cardCvc')}
+                    onChange={handleCardChange("cardCvc")}
                   />
                 </div>
                 {cardErrors.cardCvc && (
-                  <p className="text-red-400 text-sm mt-1">{cardErrors.cardCvc}</p>
+                  <p className="text-red-400 text-sm mt-1">
+                    {cardErrors.cardCvc}
+                  </p>
                 )}
               </div>
             </div>
@@ -264,8 +290,8 @@ export default function MultiEventPaymentModal({ isOpen, onClose }) {
   if (!isOpen) return null;
 
   const handleSuccess = (paymentResult) => {
-    console.log('Payment successful:', paymentResult);
-    toast.success('Payment successful! All tickets confirmed.');
+    console.log("Payment successful:", paymentResult);
+    toast.success("Payment successful! All tickets confirmed.");
 
     // Clear the cart after successful payment
     clearCart();
