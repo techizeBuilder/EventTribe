@@ -25,14 +25,15 @@ export default function AdminEventsManagement() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const eventsPerPage = 10;
-  
+
   // Modal states
   const [viewModal, setViewModal] = useState({ isOpen: false, event: null });
   const [editModal, setEditModal] = useState({ isOpen: false, event: null });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, event: null });
   const [bookingsModal, setBookingsModal] = useState({ isOpen: false, event: null, bookings: [], loading: false });
   const [actionLoading, setActionLoading] = useState(false);
-  
+  const [statusModal, setStatusModal] = useState({ isOpen: false, event: null, newStatus: '', reason: '' });
+
   // Form states
   const [editForm, setEditForm] = useState({
     title: '',
@@ -51,7 +52,7 @@ export default function AdminEventsManagement() {
   const fetchEvents = async () => {
     try {
       const response = await fetch("/api/admin/events");
-      
+
       if (response.ok) {
         const data = await response.json();
         setEvents(data);
@@ -112,13 +113,13 @@ export default function AdminEventsManagement() {
 
   const confirmDelete = async () => {
     if (!deleteModal.event) return;
-    
+
     setActionLoading(true);
     try {
       const response = await fetch(`/api/admin/events/${deleteModal.event.id}`, {
         method: 'DELETE'
       });
-      
+
       if (response.ok) {
         setEvents(events.filter(event => event.id !== deleteModal.event.id));
         toast.success("Event deleted successfully");
@@ -137,7 +138,7 @@ export default function AdminEventsManagement() {
   const handleUpdateEvent = async (e) => {
     e.preventDefault();
     if (!editModal.event) return;
-    
+
     setActionLoading(true);
     try {
       const response = await fetch(`/api/admin/events/${editModal.event.id}`, {
@@ -147,7 +148,7 @@ export default function AdminEventsManagement() {
         },
         body: JSON.stringify(editForm)
       });
-      
+
       if (response.ok) {
         // Update local state
         setEvents(events.map(event => 
@@ -191,10 +192,37 @@ export default function AdminEventsManagement() {
       toast.error("Failed to update event status");
     }
   };
+  
+  const handleStatusUpdate = async (eventId, newStatus, reason = '') => {
+    setActionLoading(true);
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/status`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus, reason: reason }),
+      });
+
+      if (response.ok) {
+        setEvents(events.map(e => 
+          e.id === eventId ? { ...e, status: newStatus } : e
+        ));
+        toast.success(`Event status updated to ${newStatus}`);
+      } else {
+        toast.error("Failed to update event status");
+      }
+    } catch (error) {
+      console.error("Error updating event status:", error);
+      toast.error("Failed to update event status");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleViewBookings = async (event) => {
     setBookingsModal({ isOpen: true, event, bookings: [], loading: true });
-    
+
     try {
       const response = await fetch(`/api/admin/events/${event.id}/bookings`);
       if (response.ok) {
@@ -391,9 +419,48 @@ export default function AdminEventsManagement() {
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(event.status)}`}>
-                      {event.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(event.status)}`}>
+                        {event.status}
+                      </span>
+
+                      {/* Status Update Dropdown */}
+                      <div className="relative">
+                        <select
+                          onChange={(e) => {
+                            if (e.target.value && e.target.value !== event.status) {
+                              if (e.target.value === 'rejected' || e.target.value === 'unpublished') {
+                                setStatusModal({
+                                  isOpen: true,
+                                  event,
+                                  newStatus: e.target.value,
+                                  reason: ''
+                                });
+                              } else {
+                                handleStatusUpdate(event.id, e.target.value);
+                              }
+                            }
+                            e.target.value = '';
+                          }}
+                          className="text-xs bg-gray-700 text-gray-300 border border-gray-600 rounded px-2 py-1"
+                          defaultValue=""
+                        >
+                          <option value="" disabled>Update Status</option>
+                          {event.status === 'pending_approval' && (
+                            <>
+                              <option value="published">Approve & Publish</option>
+                              <option value="rejected">Reject</option>
+                            </>
+                          )}
+                          {event.status === 'published' && (
+                            <option value="unpublished">Unpublish</option>
+                          )}
+                          {(event.status === 'rejected' || event.status === 'unpublished') && (
+                            <option value="published">Publish</option>
+                          )}
+                        </select>
+                      </div>
+                    </div>
                   </td>
                   <td className="p-4">
                     <div className="text-sm">
@@ -478,7 +545,7 @@ export default function AdminEventsManagement() {
                 <X size={24} />
               </button>
             </div>
-            
+
             {viewModal.event && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -530,7 +597,7 @@ export default function AdminEventsManagement() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <form onSubmit={handleUpdateEvent} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -636,11 +703,11 @@ export default function AdminEventsManagement() {
                 <X size={24} />
               </button>
             </div>
-            
+
             <p className="text-gray-300 mb-6">
               Are you sure you want to delete "{deleteModal.event?.title}"? This action cannot be undone.
             </p>
-            
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setDeleteModal({ isOpen: false, event: null })}
@@ -662,7 +729,7 @@ export default function AdminEventsManagement() {
 
       {/* Bookings Modal */}
       {bookingsModal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold text-white">Event Bookings & Payments</h3>
@@ -673,7 +740,7 @@ export default function AdminEventsManagement() {
                 <X size={24} />
               </button>
             </div>
-            
+
             {bookingsModal.event && (
               <div className="mb-6 p-4 bg-gray-700 rounded-lg">
                 <h4 className="text-lg font-semibold text-white mb-2">{bookingsModal.event.title}</h4>
@@ -750,7 +817,7 @@ export default function AdminEventsManagement() {
                     </div>
                   ))}
                 </div>
-                
+
                 <div className="mt-6 p-4 bg-gray-700 rounded-lg">
                   <h5 className="text-lg font-semibold text-white mb-3">Booking Summary</h5>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -785,6 +852,68 @@ export default function AdminEventsManagement() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Status Update Modal */}
+      {statusModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gray-800 rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <h2 className="text-xl font-bold text-white mb-4">
+                {statusModal.newStatus === 'rejected' ? 'Reject Event' : 'Unpublish Event'}
+              </h2>
+
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-white mb-2">
+                  {statusModal.event?.title}
+                </h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  Current Status: {statusModal.event?.status}
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-white font-medium mb-2">
+                  Reason for {statusModal.newStatus === 'rejected' ? 'Rejection' : 'Unpublishing'}
+                </label>
+                <textarea
+                  value={statusModal.reason}
+                  onChange={(e) => setStatusModal(prev => ({ ...prev, reason: e.target.value }))}
+                  placeholder={`Please provide a reason for ${statusModal.newStatus === 'rejected' ? 'rejecting' : 'unpublishing'} this event...`}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  rows={4}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStatusModal({ isOpen: false, event: null, newStatus: '', reason: '' })}
+                  className="flex-1 bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!statusModal.reason.trim()) {
+                      toast.error("Please provide a reason");
+                      return;
+                    }
+                    handleStatusUpdate(statusModal.event.id, statusModal.newStatus, statusModal.reason);
+                    setStatusModal({ isOpen: false, event: null, newStatus: '', reason: '' });
+                  }}
+                  className={`flex-1 px-4 py-2 rounded-lg transition-colors ${
+                    statusModal.newStatus === 'rejected'
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-gray-600 hover:bg-gray-700 text-white'
+                  }`}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Processing...' : (statusModal.newStatus === 'rejected' ? 'Reject Event' : 'Unpublish Event')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

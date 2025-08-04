@@ -78,10 +78,10 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
             <h1 style="margin: 0; font-size: 24px;">EVENT TRIBE</h1>
             <p style="margin: 10px 0 0 0;">Your tickets are confirmed!</p>
           </div>
-          
+
           <div style="padding: 30px; background: #f8f9fa;">
             <h2 style="color: #1f2937; margin-bottom: 20px;">${booking.eventTitle}</h2>
-            
+
             <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h3 style="color: #374151; margin-bottom: 15px;">Booking Details</h3>
               <p><strong>Booking ID:</strong> ${booking.bookingId}</p>
@@ -90,7 +90,7 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
               <p><strong>Booking Date:</strong> ${new Date(booking.bookingDate).toLocaleDateString()}</p>
               <p><strong>Total Amount:</strong> $${booking.totalAmount.toFixed(2)}</p>
             </div>
-            
+
             <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
               <h3 style="color: #374151; margin-bottom: 15px;">Ticket Details</h3>
               ${
@@ -104,7 +104,7 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
                   : "<p>General Admission</p>"
               }
             </div>
-            
+
             ${
               qrCode
                 ? `
@@ -119,7 +119,7 @@ async function sendConfirmationEmail(booking: any, qrCode: string) {
                 : ""
             }
           </div>
-          
+
           <div style="background: #374151; color: white; padding: 20px; text-align: center;">
             <p style="margin: 0; font-size: 14px;">
               Thank you for choosing Event Tribe! We can't wait to see you at the event.
@@ -233,7 +233,7 @@ function generateTicketHTML(booking: any) {
                 <div class="logo">EVENT TRIBE</div>
                 <div class="event-title">${booking.eventTitle}</div>
             </div>
-            
+
             <div class="details">
                 <div class="detail-item">
                     <div class="detail-label">BOOKING ID</div>
@@ -248,7 +248,7 @@ function generateTicketHTML(booking: any) {
                     <div class="detail-value">${booking.status.toUpperCase()}</div>
                 </div>
             </div>
-            
+
             <div class="details">
                 <div class="detail-item">
                     <div class="detail-label">CUSTOMER</div>
@@ -259,7 +259,7 @@ function generateTicketHTML(booking: any) {
                     <div class="detail-value">${booking.userEmail}</div>
                 </div>
             </div>
-            
+
             <div class="ticket-details">
                 <h3>Ticket Details</h3>
                 ${
@@ -277,11 +277,11 @@ function generateTicketHTML(booking: any) {
                     : ""
                 }
             </div>
-            
+
             <div class="total">
                 Total: $${booking.totalAmount.toFixed(2)}
             </div>
-            
+
             <div class="qr-section">
                 <div class="booking-id">${booking.bookingId}</div>
                 <p>Present this ticket at the event entrance</p>
@@ -1835,17 +1835,31 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     try {
       await mongoStorage.connect();
 
-      const { status } = req.body;
+      const { eventId } = req.params;
+      const { status, reason } = req.body;
 
-      const result = await mongoStorage.db.collection("events").updateOne(
-        { _id: req.params.eventId },
-        {
-          $set: {
-            status,
-            updatedAt: new Date(),
-          },
-        },
-      );
+      const updateData = { 
+        status: status,
+        updatedAt: new Date()
+      };
+
+      // Add specific fields based on status
+      if (status === 'published') {
+        updateData.publishedAt = new Date();
+      } else if (status === 'rejected') {
+        updateData.rejectedAt = new Date();
+        updateData.rejectionReason = reason || 'No reason provided';
+      } else if (status === 'unpublished') {
+        updateData.unpublishedAt = new Date();
+        updateData.unpublishReason = reason || 'No reason provided';
+      }
+
+      const result = await mongoStorage.db
+        .collection("events")
+        .updateOne(
+          { _id: new ObjectId(eventId) },
+          { $set: updateData }
+        );
 
       if (result.matchedCount === 0) {
         return res.status(404).json({ message: "Event not found" });
@@ -2842,6 +2856,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       const cartItems = await mongoStorage.getCart(userEmail);
       res.json({ items: cartItems });
     } catch (error: any) {
+```text
       console.error("Get cart error:", error);
       res.json({ items: [] });
     }
