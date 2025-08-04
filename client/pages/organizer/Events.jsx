@@ -35,9 +35,23 @@ export default function Events() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      console.log("Fetching events with authService");
+      console.log("Fetching events with token");
 
-      const response = await authService.apiRequest("/api/organizer/events");
+      const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+      
+      if (!token) {
+        toast.error("Please login first to view events");
+        navigate("/login");
+        return;
+      }
+
+      const response = await fetch("/api/organizer/events", {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       console.log("Response status:", response.status);
 
@@ -48,7 +62,7 @@ export default function Events() {
       } else {
         const errorData = await response.json();
         console.error("Error response:", errorData);
-        //   toast.error(`Error: ${errorData.message}`);
+        toast.error(`Error: ${errorData.message}`);
       }
     } catch (error) {
       console.error("Error fetching events:", error);
