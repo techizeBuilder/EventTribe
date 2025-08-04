@@ -84,8 +84,11 @@ class AuthService {
 
   // Set authentication data
   setAuthData(data) {
-    if (data.accessToken) {
-      localStorage.setItem('token', data.accessToken);
+    // Handle both token formats for compatibility
+    const token = data.accessToken || data.token;
+    if (token) {
+      localStorage.setItem('token', token);
+      this.token = token;
     }
     if (data.refreshToken) {
       localStorage.setItem('refreshToken', data.refreshToken);
@@ -93,7 +96,6 @@ class AuthService {
     if (data.user) {
       localStorage.setItem('user', JSON.stringify(data.user));
     }
-    this.token = data.accessToken;
   }
 
   // Logout user

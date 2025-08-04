@@ -393,6 +393,7 @@ class EnhancedAuthService {
       return {
         message: "Login successful",
         user,
+        token: accessToken,  // Add this for frontend compatibility
         accessToken,
         refreshToken,
       };

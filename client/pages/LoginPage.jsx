@@ -46,14 +46,15 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Store token in localStorage
-        localStorage.setItem('authToken', data.token);
+        // Store token in localStorage (consistent with authService)
+        localStorage.setItem('token', data.accessToken || data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         
         // Dispatch login action to Redux store
         dispatch(
           loginUser({
             user: data.user,
-            token: data.token,
+            token: data.accessToken || data.token,
           }),
         );
         
