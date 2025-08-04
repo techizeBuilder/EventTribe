@@ -47,7 +47,12 @@ app.use((req, res, next) => {
   await mongoStorage.connect();
   console.log('[STARTUP] MongoDB connection established');
 
-  const server = await registerEnhancedRoutes(app);
+  // Register main routes (includes event endpoints)
+  const server = await registerRoutes(app);
+  
+  // Register enhanced routes
+  await registerEnhancedRoutes(app);
+  
   // Register organizer routes
   app.use('/api/organizer', organizerRoutes);
   app.use('/api/admin', adminRoutes);

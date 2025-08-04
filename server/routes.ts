@@ -4,12 +4,14 @@ import { mongoStorage } from "./mongodb-storage.js";
 import { AuthService, authenticateToken, requireRole } from './auth.js';
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('Missing required Stripe secret: STRIPE_SECRET_KEY');
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2023-10-16",
+  });
+} else {
+  console.warn('[STARTUP] Stripe not configured - payment routes will be disabled');
 }
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
-});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Connect to MongoDB
@@ -134,6 +136,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Stripe payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
+      if (!stripe) {
+        return res.status(503).json({ error: "Payment processing not configured" });
+      }
+      
       const { amount, eventId, eventTitle, ticketDetails } = req.body;
 
       if (!amount || amount <= 0) {
@@ -165,6 +171,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/confirm-payment", async (req, res) => {
     try {
+      if (!stripe) {
+        return res.status(503).json({ error: "Payment processing not configured" });
+      }
+      
       const { paymentIntentId } = req.body;
 
       if (!paymentIntentId) {
@@ -197,9 +207,168 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PUBLIC EVENT ROUTES ====================
+  
+  // Debug route to check all events in database
+  app.get("/api/debug/events", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      const allEvents = await eventsCollection.find({}).toArray();
+      const statusCounts = {};
+      
+      allEvents.forEach(event => {
+        const status = event.status || 'undefined';
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      
+      console.log(`Debug: Found ${allEvents.length} total events`);
+      console.log('Debug: Status distribution:', statusCounts);
+      
+      res.json({
+        totalEvents: allEvents.length,
+        statusCounts,
+        sampleEvents: allEvents.slice(0, 3).map(event => ({
+          _id: event._id,
+          title: event.title,
+          status: event.status,
+          category: event.category
+        }))
+      });
+    } catch (error) {
+      console.error("Error in debug route:", error);
+      res.status(500).json({ message: "Error fetching debug info" });
+    }
+  });
+  
+  // GET /api/events - Get all public events
+  app.get("/api/events", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // First try to get events with specific statuses
+      let events = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] }
+      }).sort({ createdAt: -1 }).toArray();
+      
+      // If no events found with those statuses, get any events
+      if (events.length === 0) {
+        console.log('No events with approved/active/published status, fetching all events');
+        events = await eventsCollection.find({}).sort({ createdAt: -1 }).toArray();
+      }
+      
+      console.log(`Found ${events.length} public events`);
+      res.json(events);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      res.status(500).json({ message: "Error fetching events" });
+    }
+  });
+
+  // GET /api/events/:id - Get specific event by ID
+  app.get("/api/events/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await mongoStorage.connect();
+      const { ObjectId } = await import('mongodb');
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      let event = null;
+      
+      // Try different query formats
+      if (ObjectId.isValid(id)) {
+        event = await eventsCollection.findOne({ _id: new ObjectId(id) });
+      }
+      
+      if (!event) {
+        event = await eventsCollection.findOne({ _id: id });
+      }
+      
+      if (!event) {
+        event = await eventsCollection.findOne({ id: id });
+      }
+      
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      
+      res.json(event);
+    } catch (error) {
+      console.error("Error fetching event:", error);
+      res.status(500).json({ message: "Error fetching event" });
+    }
+  });
+
+  // GET /api/events/trending - Get trending events
+  app.get("/api/events/trending", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // For now, get recent events as "trending" (you can modify this logic)
+      const trendingEvents = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] }
+      }).sort({ createdAt: -1 }).limit(6).toArray();
+      
+      console.log(`Found ${trendingEvents.length} trending events`);
+      res.json(trendingEvents);
+    } catch (error) {
+      console.error("Error fetching trending events:", error);
+      res.status(500).json({ message: "Error fetching trending events" });
+    }
+  });
+
+  // GET /api/events/past - Get past events
+  app.get("/api/events/past", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // Get events where end date is in the past
+      const currentDate = new Date();
+      const pastEvents = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] },
+        endDate: { $lt: currentDate }
+      }).sort({ endDate: -1 }).limit(8).toArray();
+      
+      console.log(`Found ${pastEvents.length} past events`);
+      res.json(pastEvents);
+    } catch (error) {
+      console.error("Error fetching past events:", error);
+      res.status(500).json({ message: "Error fetching past events" });
+    }
+  });
+
+  // GET /api/events/category/:category - Get events by category
+  app.get("/api/events/category/:category", async (req, res) => {
+    try {
+      const { category } = req.params;
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // Case-insensitive category search
+      const categoryEvents = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] },
+        category: { $regex: new RegExp(category, 'i') }
+      }).sort({ createdAt: -1 }).limit(12).toArray();
+      
+      console.log(`Found ${categoryEvents.length} events in category: ${category}`);
+      res.json(categoryEvents);
+    } catch (error) {
+      console.error("Error fetching category events:", error);
+      res.status(500).json({ message: "Error fetching category events" });
+    }
+  });
+
   // Multi-event payment intent for cart
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
+      if (!stripe) {
+        return res.status(503).json({ error: "Payment processing not configured" });
+      }
+      
       const { items, amount, userEmail, userName } = req.body;
 
       console.log("✅ HIT /api/create-multi-event-payment-intent", req.body);
@@ -863,7 +1032,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, 0);
 
         return {
-```text
           _id: event._id,
           title: event.title,
           revenue,
