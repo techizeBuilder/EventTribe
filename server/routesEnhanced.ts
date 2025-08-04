@@ -2856,7 +2856,6 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       const cartItems = await mongoStorage.getCart(userEmail);
       res.json({ items: cartItems });
     } catch (error: any) {
-```text
       console.error("Get cart error:", error);
       res.json({ items: [] });
     }
