@@ -1837,6 +1837,14 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       const { eventId } = req.params;
       const { status, reason } = req.body;
+      
+      // Import ObjectId
+      const { ObjectId } = await import("mongodb");
+
+      // Validate ObjectId format
+      if (!ObjectId.isValid(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID format" });
+      }
 
       const updateData = { 
         status: status,
