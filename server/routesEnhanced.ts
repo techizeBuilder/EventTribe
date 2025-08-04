@@ -2841,7 +2841,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       res.json({ success: true, item: result });
     } catch (error: any) {
       console.error("Add to cart error:", error);
-      res.status(500.json({ error: "Failed to add item to cart" });
+      res.status(500).json({ error: "Failed to add item to cart" });
     }
   });
 
