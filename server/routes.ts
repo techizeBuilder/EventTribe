@@ -201,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
       const { items, amount, userEmail, userName } = req.body;
-        
+
       console.log("✅ HIT /api/create-multi-event-payment-intent", req.body);
 
       if (!amount || amount <= 0) {
@@ -919,6 +919,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Create event error:', error);
       res.status(500).json({ message: 'Failed to create event' });
+    }
+  });
+
+  // Public events routes (no authentication required)
+  app.get('/api/events', async (req, res) => {
+    try {
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+
+      // Return all events for public view (including draft for development)
+      let events = await eventsCollection.find({}).sort({ createdAt: -1 }).toArray();
+
+      // If no events exist, create some sample ones for demo
+      if (events.length === 0) {
+        const sampleEvents = [
+          {
+            title: "Summer Music Festival 2025",
+            description: "Join us for an amazing summer music festival featuring top artists",
+            location: "Central Park, New York",
+            startDate: "2025-07-15T18:00:00.000Z",
+            endDate: "2025-07-15T23:00:00.000Z",
+            category: "MUSIC",
+            status: "published",
+            image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&h=300&fit=crop",
+            ticketTypes: [
+              {
+                name: "General Admission",
+                price: 75,
+                quantity: 500,
+                sold: 0
+              }
+            ],
+            createdAt: new Date(),
+            organizerId: "sample_organizer"
+          },
+          {
+            title: "Tech Conference 2025",
+            description: "Learn about the latest in technology and innovation",
+            location: "Convention Center, San Francisco",
+            startDate: "2025-08-20T09:00:00.000Z",
+            endDate: "2025-08-20T17:00:00.000Z",
+            category: "TECHNOLOGY",
+            status: "published",
+            image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop",
+            ticketTypes: [
+              {
+                name: "Standard Pass",
+                price: 150,
+                quantity: 300,
+                sold: 0
+              }
+            ],
+            createdAt: new Date(),
+            organizerId: "sample_organizer"
+          },
+          {
+            title: "Food & Wine Festival",
+            description: "Taste the finest cuisine and wines from around the world",
+            location: "Harbor District, Miami",
+            startDate: "2025-09-10T16:00:00.000Z",
+            endDate: "2025-09-10T22:00:00.000Z",
+            category: "FOOD & DRINK",
+            status: "published",
+            image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop",
+            ticketTypes: [
+              {
+                name: "Tasting Pass",
+                price: 95,
+                quantity: 200,
+                sold: 0
+              }
+            ],
+            createdAt: new Date(),
+            organizerId: "sample_organizer"
+          }
+        ];
+
+        await eventsCollection.insertMany(sampleEvents);
+        events = sampleEvents;
+      }
+
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching public events:', error);
+      res.status(500).json({ message: 'Failed to fetch events' });
+    }
+  });
+
+  // Public trending events
+  app.get('/api/events/trending', async (req, res) => {
+    try {
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+
+      // Return trending events (for demo, just return recent events)
+      const events = await eventsCollection.find({}).sort({ createdAt: -1 }).limit(8).toArray();
+
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching trending events:', error);
+      res.status(500).json({ message: 'Failed to fetch trending events' });
+    }
+  });
+
+  // Public past events
+  app.get('/api/events/past', async (req, res) => {
+    try {
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+
+      // Return past events (for demo, return older events)
+      const currentDate = new Date();
+      const events = await eventsCollection.find({
+        endDate: { $lt: currentDate.toISOString() }
+      }).sort({ endDate: -1 }).limit(6).toArray();
+
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching past events:', error);
+      res.status(500).json({ message: 'Failed to fetch past events' });
+    }
+  });
+
+  // Public events by category
+  app.get('/api/events/category/:category', async (req, res) => {
+    try {
+      const { category } = req.params;
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const eventsCollection = mongoStorage.db.collection('events');
+
+      // Return events by category
+      const events = await eventsCollection.find({
+        category: { $regex: new RegExp(category, 'i') }
+      }).sort({ createdAt: -1 }).limit(12).toArray();
+
+      res.json(events);
+    } catch (error) {
+      console.error('Error fetching events by category:', error);
+      res.status(500).json({ message: 'Failed to fetch events by category' });
     }
   });
 
