@@ -40,6 +40,10 @@ export default function EditEvent() {
     address: "",
     startDate: "",
     endDate: "",
+    eventDate: "",
+    eventTime: "",
+    eventEndDate: "",
+    eventEndTime: "",
     description: "",
     isRecurring: false,
     ticketPrice: "",
@@ -76,6 +80,10 @@ export default function EditEvent() {
         address: eventData.address || "",
         startDate: eventData.startDate ? new Date(eventData.startDate).toISOString().slice(0, 16) : "",
         endDate: eventData.endDate ? new Date(eventData.endDate).toISOString().slice(0, 16) : "",
+        eventDate: eventData.eventDate ? new Date(eventData.eventDate).toISOString().slice(0, 10) : "",
+        eventTime: eventData.eventTime || "18:00",
+        eventEndDate: eventData.eventEndDate ? new Date(eventData.eventEndDate).toISOString().slice(0, 10) : "",
+        eventEndTime: eventData.eventEndTime || "22:00",
         description: eventData.description || "",
         isRecurring: eventData.isRecurring || false,
         ticketPrice: eventData.ticketTypes?.[0]?.price || "",
@@ -290,6 +298,10 @@ export default function EditEvent() {
         address: formData.address,
         startDate: formData.startDate,
         endDate: formData.endDate,
+        eventDate: formData.eventDate,
+        eventTime: formData.eventTime,
+        eventEndDate: formData.eventEndDate,
+        eventEndTime: formData.eventEndTime,
         category: formData.category || "General",
         locationType: "physical",
         isPublic: formData.showOnExplore,
@@ -521,24 +533,24 @@ export default function EditEvent() {
                 </div>
               </div>
 
-              {/* Date & Time Section */}
+              {/* Event Date & Time Section */}
               <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
                 <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
                   <FiCalendar className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
                   <h2 className="text-white text-lg sm:text-xl font-bold">
-                    Date & Time
+                    Event Date & Time
                   </h2>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2">
-                      Start Time
+                      Event Date
                     </label>
                     <input
-                      type="datetime-local"
-                      name="startDate"
-                      value={formData.startDate}
+                      type="date"
+                      name="eventDate"
+                      value={formData.eventDate}
                       onChange={handleInputChange}
                       className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
                       required
@@ -546,15 +558,81 @@ export default function EditEvent() {
                   </div>
                   <div>
                     <label className="block text-gray-300 text-sm font-medium mb-2">
-                      End Time
+                      Event Time
+                    </label>
+                    <input
+                      type="time"
+                      name="eventTime"
+                      value={formData.eventTime}
+                      onChange={handleInputChange}
+                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Event End Date
+                    </label>
+                    <input
+                      type="date"
+                      name="eventEndDate"
+                      value={formData.eventEndDate}
+                      onChange={handleInputChange}
+                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Event End Time
+                    </label>
+                    <input
+                      type="time"
+                      name="eventEndTime"
+                      value={formData.eventEndTime}
+                      onChange={handleInputChange}
+                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Availability Section */}
+              <div className="bg-gray-900 rounded-lg p-4 sm:p-6">
+                <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+                  <FiCalendar className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+                  <h2 className="text-white text-lg sm:text-xl font-bold">
+                    Booking Availability
+                  </h2>
+                </div>
+                <p className="text-gray-400 text-sm mb-4">
+                  Set when customers can start and stop booking tickets for this event
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Booking Start Date & Time
+                    </label>
+                    <input
+                      type="datetime-local"
+                      name="startDate"
+                      value={formData.startDate}
+                      onChange={handleInputChange}
+                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 text-sm font-medium mb-2">
+                      Booking End Date & Time
                     </label>
                     <input
                       type="datetime-local"
                       name="endDate"
                       value={formData.endDate}
                       onChange={handleInputChange}
-                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
-                      required
+                      className="w-full bg-transparent border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>

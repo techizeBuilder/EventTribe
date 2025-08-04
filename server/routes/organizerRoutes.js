@@ -168,6 +168,11 @@ router.post('/events', async (req, res) => {
     const eventData = { 
       ...req.body, 
       organizerId,
+      // Ensure event dates are properly stored
+      eventDate: req.body.eventDate || req.body.startDate,
+      eventTime: req.body.eventTime || "18:00",
+      eventEndDate: req.body.eventEndDate || req.body.endDate,
+      eventEndTime: req.body.eventEndTime || "22:00",
       organizationId: organizerId, // Use organizer ID as organization ID for simplicity
       ticketTypes: processedTicketTypes,
       createdAt: new Date(),

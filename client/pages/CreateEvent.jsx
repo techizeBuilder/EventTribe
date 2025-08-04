@@ -37,6 +37,10 @@ export default function CreateEvent() {
     address: "",
     startDate: "",
     endDate: "",
+    eventDate: "",
+    eventTime: "",
+    eventEndDate: "",
+    eventEndTime: "",
     description: "",
     isRecurring: false,
     ticketPrice: "",
@@ -104,8 +108,12 @@ export default function CreateEvent() {
             title: eventData.title || "",
             venueName: eventData.venueName || eventData.venue || "",
             address: eventData.address || eventData.location || "",
-            startDate: eventData.startDate || "", // Keep original dates
-            endDate: eventData.endDate || "", // Keep original dates
+            startDate: eventData.startDate || "", // Booking start date
+            endDate: eventData.endDate || "", // Booking end date
+            eventDate: eventData.eventDate || eventData.startDate || "", // Actual event date
+            eventTime: eventData.eventTime || "18:00", // Default event time
+            eventEndDate: eventData.eventEndDate || eventData.endDate || "", // Actual event end date
+            eventEndTime: eventData.eventEndTime || "22:00", // Default event end time
             description: eventData.description || "",
             isRecurring: eventData.isRecurring || false,
             ticketPrice: eventData.ticketPrice || eventData.price || "",
@@ -319,8 +327,12 @@ export default function CreateEvent() {
         description: formData.description,
         venue: formData.venueName,
         address: formData.address,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        startDate: formData.startDate, // Booking start date
+        endDate: formData.endDate, // Booking end date
+        eventDate: formData.eventDate, // Actual event date
+        eventTime: formData.eventTime, // Actual event time
+        eventEndDate: formData.eventEndDate, // Actual event end date
+        eventEndTime: formData.eventEndTime, // Actual event end time
         category: formData.category || "General",
         locationType: "physical",
         status: "draft",
@@ -407,6 +419,10 @@ export default function CreateEvent() {
           address: "",
           startDate: "",
           endDate: "",
+          eventDate: "",
+          eventTime: "",
+          eventEndDate: "",
+          eventEndTime: "",
           description: "",
           isRecurring: false,
           ticketPrice: "",
@@ -666,12 +682,79 @@ export default function CreateEvent() {
                 />
               </div>
 
-              {/* Start and End Time */}
-              <div className="space-y-2">
+              {/* Event Date and Time */}
+              <div className="space-y-4">
+                <label className="text-white font-semibold text-lg block">
+                  EVENT DATE & TIME
+                </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-white text-sm mb-2 block">
-                      Start Time
+                      Event Date
+                    </label>
+                    <input
+                      type="date"
+                      name="eventDate"
+                      value={formData.eventDate}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white text-sm mb-2 block">
+                      Event Time
+                    </label>
+                    <input
+                      type="time"
+                      name="eventTime"
+                      value={formData.eventTime}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-white text-sm mb-2 block">
+                      Event End Date
+                    </label>
+                    <input
+                      type="date"
+                      name="eventEndDate"
+                      value={formData.eventEndDate}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-white text-sm mb-2 block">
+                      Event End Time
+                    </label>
+                    <input
+                      type="time"
+                      name="eventEndTime"
+                      value={formData.eventEndTime}
+                      onChange={handleInputChange}
+                      className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Booking Date Range */}
+              <div className="space-y-4">
+                <label className="text-white font-semibold text-lg block">
+                  BOOKING AVAILABILITY
+                </label>
+                <p className="text-gray-400 text-sm">
+                  Set when customers can start and stop booking tickets for this event
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-white text-sm mb-2 block">
+                      Booking Start Date
                     </label>
                     <button
                       type="button"
@@ -680,12 +763,12 @@ export default function CreateEvent() {
                     >
                       {formData.startDate
                         ? new Date(formData.startDate).toLocaleString()
-                        : "Select start date and time"}
+                        : "Select booking start date and time"}
                     </button>
                   </div>
                   <div>
                     <label className="text-white text-sm mb-2 block">
-                      End Time
+                      Booking End Date
                     </label>
                     <button
                       type="button"
@@ -694,7 +777,7 @@ export default function CreateEvent() {
                     >
                       {formData.endDate
                         ? new Date(formData.endDate).toLocaleString()
-                        : "Select end date and time"}
+                        : "Select booking end date and time"}
                     </button>
                   </div>
                 </div>

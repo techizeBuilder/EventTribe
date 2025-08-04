@@ -337,9 +337,15 @@ export default function Events() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-300">
                     <FiCalendar className="w-4 h-4 mr-2" />
-                    {new Date(event.startDate).toLocaleDateString()} at{" "}
-                    {new Date(event.startDate).toLocaleTimeString()}
+                    Event: {event.eventDate 
+                      ? new Date(event.eventDate).toLocaleDateString() + (event.eventTime ? ` at ${event.eventTime}` : '')
+                      : new Date(event.startDate).toLocaleDateString() + " at " + new Date(event.startDate).toLocaleTimeString()}
                   </div>
+                  {event.startDate && event.eventDate && new Date(event.startDate).toDateString() !== new Date(event.eventDate).toDateString() && (
+                    <div className="flex items-center text-xs text-gray-400 mt-1">
+                      <span className="ml-6">Booking: {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
                   <div className="flex items-center text-sm text-gray-300">
                     <FiMapPin className="w-4 h-4 mr-2" />
                     {event.venue || "Location TBD"}

@@ -1,4 +1,3 @@
-
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import { FiShoppingCart, FiX } from 'react-icons/fi'
@@ -19,13 +18,13 @@ export default function EventCard({ event, index }) {
   const handleAddToCart = (e) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     // Check if event has expired
     if (isEventExpired()) {
       toast.error("This event is no longer available for booking as the last date has passed.");
       return;
     }
-    
+
     // Create a default ticket if none exists
     let defaultTicket;
     if (event.tickets && event.tickets.length > 0) {
@@ -40,7 +39,7 @@ export default function EventCard({ event, index }) {
         description: 'Standard event ticket'
       }
     }
-    
+
     addToCart(event.id || event._id, event.title, defaultTicket, 1)
   }
 
@@ -74,6 +73,7 @@ export default function EventCard({ event, index }) {
             </h3>
 
             <div className="space-y-2">
+              
               <div className="flex items-center text-slate-400 text-sm">
                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
@@ -104,7 +104,7 @@ export default function EventCard({ event, index }) {
           </div>
         </motion.div>
       </Link>
-      
+
       {/* Add to Cart Button - Positioned within card content */}
       {isEventExpired() ? (
         <motion.div

@@ -351,12 +351,33 @@ const EventDetailsPage = () => {
                   <p className="text-gray-300 text-sm">
                     📍 {event.address || event.location}
                   </p>
-                  <p className="text-gray-300 text-sm">
-                    📅{" "}
-                    {event.startDate
-                      ? new Date(event.startDate).toLocaleDateString()
-                      : "Date TBD"}
-                  </p>
+                  
+                  <div className="flex items-center text-gray-600 mb-3">
+                    <FiCalendar className="w-5 h-5 mr-2 text-red-400" />
+                    <span>
+                      {event.eventDate
+                        ? new Date(event.eventDate).toLocaleDateString()
+                        : event.startDate
+                        ? new Date(event.startDate).toLocaleDateString()
+                        : "Date TBD"}{" "}
+                      at{" "}
+                      {event.eventTime || 
+                        (event.startDate
+                          ? new Date(event.startDate).toLocaleTimeString()
+                          : "Time TBD")}
+                      {event.eventEndDate && event.eventEndDate !== event.eventDate && (
+                        <span>
+                          {" - "} 
+                          {new Date(event.eventEndDate).toLocaleDateString()}
+                          {event.eventEndTime && ` at ${event.eventEndTime}`}
+                        </span>
+                      )}
+                      {event.eventEndTime && (!event.eventEndDate || event.eventEndDate === event.eventDate) && (
+                        <span> - {event.eventEndTime}</span>
+                      )}
+                    </span>
+                  </div>
+                  
                   {event.locationType && (
                     <p className="text-gray-300 text-sm">
                       🏢{" "}
