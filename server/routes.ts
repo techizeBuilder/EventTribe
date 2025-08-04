@@ -1290,14 +1290,203 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to add item to cart" });
     }
   });
+
+  app.delete("/api/cart/remove", async (req, res) => {
+    try {
+      const { userEmail, itemId } = req.body;
+
+      console.log("Cart remove request:", { userEmail, itemId });
+
+      if (!userEmail || !itemId) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Missing required fields: userEmail and itemId" 
+        });
+      }
+
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const { ObjectId } = await import('mongodb');
+
+      // Remove item from cart
+      let result;
+      if (ObjectId.isValid(itemId)) {
+        result = await mongoStorage.cart.deleteOne({
+          _id: new ObjectId(itemId),
+          userEmail: userEmail
+        });
+      } else {
+        result = await mongoStorage.cart.deleteOne({
+          _id: itemId,
+          userEmail: userEmail
+        });
+      }
+
+      console.log(`[Cart] Remove result for ${itemId}:`, result);
+
+      if (result.deletedCount > 0) {
+        res.json({ 
+          success: true, 
+          message: "Item removed from cart",
+          deletedCount: result.deletedCount 
+        });
+      } else {
+        res.status(404).json({ 
+          success: false, 
+          error: "Item not found in cart" 
+        });
+      }
+    } catch (error) {
+      console.error("Error removing from cart:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to remove item from cart",
+        message: error.message 
+      });
+    }
+  });
+
+  app.put("/api/cart/update", async (req, res) => {
+    try {
+      const { userEmail, itemId, quantity } = req.body;
+
+      console.log("Cart update request:", { userEmail, itemId, quantity });
+
+      if (!userEmail || !itemId || quantity === undefined) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "Missing required fields" 
+        });
+      }
+
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const { ObjectId } = await import('mongodb');
+
+      if (quantity <= 0) {
+        // Remove item if quantity is 0 or negative
+        let result;
+        if (ObjectId.isValid(itemId)) {
+          result = await mongoStorage.cart.deleteOne({
+            _id: new ObjectId(itemId),
+            userEmail: userEmail
+          });
+        } else {
+          result = await mongoStorage.cart.deleteOne({
+            _id: itemId,
+            userEmail: userEmail
+          });
+        }
+
+        if (result.deletedCount > 0) {
+          res.json({ success: true, message: "Item removed from cart" });
+        } else {
+          res.status(404).json({ success: false, error: "Item not found" });
+        }
+      } else {
+        // Update quantity
+        let result;
+        if (ObjectId.isValid(itemId)) {
+          result = await mongoStorage.cart.updateOne(
+            { _id: new ObjectId(itemId), userEmail: userEmail },
+            { $set: { quantity: parseInt(quantity), updatedAt: new Date() } }
+          );
+        } else {
+          result = await mongoStorage.cart.updateOne(
+            { _id: itemId, userEmail: userEmail },
+            { $set: { quantity: parseInt(quantity), updatedAt: new Date() } }
+          );
+        }
+
+        if (result.matchedCount > 0) {
+          res.json({ success: true, message: "Cart item updated" });
+        } else {
+          res.status(404).json({ success: false, error: "Item not found" });
+        }
+      }
+    } catch (error) {
+      console.error("Error updating cart:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to update cart item",
+        message: error.message 
+      });
+    }
+  });
+
+  app.delete("/api/cart/clear/:userEmail", async (req, res) => {
+    try {
+      const { userEmail } = req.params;
+
+      console.log("Cart clear request for:", userEmail);
+
+      if (!userEmail) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "User email is required" 
+        });
+      }
+
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const result = await mongoStorage.cart.deleteMany({ userEmail });
+
+      console.log(`[Cart] Cleared ${result.deletedCount} items for user ${userEmail}`);
+
+      res.json({ 
+        success: true, 
+        message: "Cart cleared successfully",
+        deletedCount: result.deletedCount 
+      });
+    } catch (error) {
+      console.error("Error clearing cart:", error);
+      res.status(500).json({ 
+        success: false, 
+        error: "Failed to clear cart",
+        message: error.message 
+      });
+    }
+  });
+
+  app.get("/api/cart/count/:userEmail", async (req, res) => {
+    try {
+      const { userEmail } = req.params;
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const result = await mongoStorage.cart
+        .aggregate([
+          { $match: { userEmail } },
+          { $group: { _id: null, totalQuantity: { $sum: "$quantity" } } },
+        ])
+        .toArray();
+
+      const count = result.length > 0 ? result[0].totalQuantity : 0;
+      res.json({ count });
+    } catch (error) {
+      console.error("Error getting cart count:", error);
+      res.status(500).json({ error: "Failed to get cart count", count: 0 });
+    }
+  });
 app.get("/api/cart/:userEmail", async (req, res) => {
     try {
       const { userEmail } = req.params;
       const { mongoStorage } = await import('./mongodb-storage.js');
       await mongoStorage.connect();
 
-      const cartItems = await mongoStorage.getCart(userEmail);
-      const count = await mongoStorage.getCartCount(userEmail);
+      const cartItems = await mongoStorage.cart.find({ userEmail }).toArray();
+      
+      const result = await mongoStorage.cart
+        .aggregate([
+          { $match: { userEmail } },
+          { $group: { _id: null, totalQuantity: { $sum: "$quantity" } } },
+        ])
+        .toArray();
+
+      const count = result.length > 0 ? result[0].totalQuantity : 0;
 
       console.log(`[Cart] Retrieved ${cartItems?.length || 0} items for user ${userEmail}`);
 
