@@ -15,21 +15,14 @@ class OTPService {
 
   storeOTP(identifier, otp, type = 'verification') {
     const key = `${identifier}:${type}`;
-    const expiresAt = new Date(Date.now() + this.otpExpiryMinutes * 60 * 1000);
     
     this.otpStore.set(key, {
       otp,
-      expiresAt,
       attempts: 0,
       type
     });
 
-    // Auto cleanup expired OTPs
-    setTimeout(() => {
-      this.otpStore.delete(key);
-    }, this.otpExpiryMinutes * 60 * 1000);
-
-    return { otp, expiresAt };
+    return { otp };
   }
 
   verifyOTP(identifier, inputOTP, type = 'verification') {
@@ -39,16 +32,7 @@ class OTPService {
     if (!otpData) {
       return { 
         success: false, 
-        error: 'OTP not found or expired',
-        remainingAttempts: 0
-      };
-    }
-
-    if (new Date() > otpData.expiresAt) {
-      this.otpStore.delete(key);
-      return { 
-        success: false, 
-        error: 'OTP has expired',
+        error: 'OTP not found',
         remainingAttempts: 0
       };
     }

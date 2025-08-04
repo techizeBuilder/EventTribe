@@ -417,9 +417,7 @@ class EnhancedAuthService {
         throw new Error("Refresh token not found");
       }
 
-      // Token expiration check removed for persistent sessions
-
-      // Generate new access token
+      // Generate new access token (no expiration)
       const { accessToken: newAccessToken } = this.generateTokens(
         decoded.userId,
         decoded.role,
@@ -519,7 +517,7 @@ class EnhancedAuthService {
         throw new Error("Invalid reset token");
       }
 
-      // Check if token exists and is not expired
+      // Check if token exists
       const resetDoc = await this.passwordResets.findOne({
         token,
         userId: new ObjectId(decoded.userId),
@@ -528,8 +526,6 @@ class EnhancedAuthService {
       if (!resetDoc) {
         throw new Error("Reset token not found");
       }
-
-      // Reset token expiration check removed for persistent sessions
 
       // Hash new password
       const hashedPassword = await this.hashPassword(newPassword);

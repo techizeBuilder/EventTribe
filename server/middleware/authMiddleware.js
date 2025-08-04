@@ -14,6 +14,11 @@ export const authenticateToken = async (req, res, next) => {
     const decoded = enhancedAuthService.verifyAccessToken(token);
     console.log('Token decoded successfully for user:', decoded.userId);
 
+    // Ensure auth service is connected before querying user
+    if (!enhancedAuthService.users) {
+      await enhancedAuthService.connect();
+    }
+
     const user = await enhancedAuthService.getUserById(decoded.userId);
     console.log('User found:', user ? user.email : 'No user');
 
@@ -26,7 +31,7 @@ export const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.error('Token verification error:', error.message);
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    return res.status(401).json({ message: 'Invalid token' });
   }
 };
 

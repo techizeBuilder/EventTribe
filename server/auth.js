@@ -29,6 +29,7 @@ class AuthService {
   }
 
   generateToken(userId, role) {
+    // Generate token without expiration
     return jwt.sign({ userId, role }, JWT_SECRET);
   }
 

@@ -105,42 +105,19 @@ class AuthService {
     // Don't auto-redirect - let the app handle it
   }
 
-  // Refresh token (simplified for persistent tokens)
+  // Refresh token (no expiration - tokens are persistent)
   async refreshToken() {
-    try {
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        console.log('No refresh token available - using persistent token');
-        return { success: true, data: { accessToken: this.token } };
-      }
-
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        this.setAuthData(data);
-        return { success: true, data };
-      } else {
-        // For persistent tokens, don't clear tokens on refresh failure
-        console.log('Token refresh failed but keeping persistent session');
-        return { success: true, data: { accessToken: this.token } };
-      }
-    } catch (error) {
-      console.error('Token refresh error:', error);
-      // For persistent tokens, don't clear tokens on network errors
-      console.log('Using existing persistent token');
-      return { success: true, data: { accessToken: this.token } };
+    // With no token expiration, just return the current token
+    const currentToken = localStorage.getItem('token');
+    if (currentToken) {
+      return { success: true, data: { accessToken: currentToken } };
     }
+    
+    // If no token exists, user needs to login again
+    return { success: false, error: 'No token available' };
   }
 
-  // Make authenticated API request (simplified for persistent tokens)
+  // Make authenticated API request (no token expiration)
   async apiRequest(url, options = {}) {
     const headers = this.getAuthHeaders();
     
@@ -152,14 +129,6 @@ class AuthService {
           ...options.headers,
         },
       });
-
-      // With persistent tokens, 401 errors are less likely
-      // But still handle them gracefully
-      if (response.status === 401) {
-        console.log('Authentication issue - check if user needs to login again');
-        // For persistent sessions, we don't automatically retry
-        // Let the component handle the 401 response
-      }
 
       return response;
     } catch (error) {
