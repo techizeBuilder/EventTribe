@@ -242,6 +242,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // GET /api/events/trending - Get trending events (must be before /api/events/:id)
+  app.get("/api/events/trending", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // For now, get recent events as "trending" (you can modify this logic)
+      const trendingEvents = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] }
+      }).sort({ createdAt: -1 }).limit(6).toArray();
+      
+      console.log(`Found ${trendingEvents.length} trending events`);
+      res.json(trendingEvents);
+    } catch (error) {
+      console.error("Error fetching trending events:", error);
+      res.status(500).json({ message: "Error fetching trending events" });
+    }
+  });
+
+  // GET /api/events/past - Get past events (must be before /api/events/:id)
+  app.get("/api/events/past", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const eventsCollection = mongoStorage.db.collection('events');
+      
+      // Get events where end date is in the past
+      const currentDate = new Date();
+      const pastEvents = await eventsCollection.find({ 
+        status: { $in: ['approved', 'active', 'published'] },
+        endDate: { $lt: currentDate }
+      }).sort({ endDate: -1 }).limit(8).toArray();
+      
+      console.log(`Found ${pastEvents.length} past events`);
+      res.json(pastEvents);
+    } catch (error) {
+      console.error("Error fetching past events:", error);
+      res.status(500).json({ message: "Error fetching past events" });
+    }
+  });
+
   // GET /api/events - Get all public events
   app.get("/api/events", async (req, res) => {
     try {
@@ -267,7 +307,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // GET /api/events/:id - Get specific event by ID
+  // GET /api/events/:id - Get specific event by ID (must be after specific routes)
   app.get("/api/events/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -298,46 +338,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching event:", error);
       res.status(500).json({ message: "Error fetching event" });
-    }
-  });
-
-  // GET /api/events/trending - Get trending events
-  app.get("/api/events/trending", async (req, res) => {
-    try {
-      await mongoStorage.connect();
-      const eventsCollection = mongoStorage.db.collection('events');
-      
-      // For now, get recent events as "trending" (you can modify this logic)
-      const trendingEvents = await eventsCollection.find({ 
-        status: { $in: ['approved', 'active', 'published'] }
-      }).sort({ createdAt: -1 }).limit(6).toArray();
-      
-      console.log(`Found ${trendingEvents.length} trending events`);
-      res.json(trendingEvents);
-    } catch (error) {
-      console.error("Error fetching trending events:", error);
-      res.status(500).json({ message: "Error fetching trending events" });
-    }
-  });
-
-  // GET /api/events/past - Get past events
-  app.get("/api/events/past", async (req, res) => {
-    try {
-      await mongoStorage.connect();
-      const eventsCollection = mongoStorage.db.collection('events');
-      
-      // Get events where end date is in the past
-      const currentDate = new Date();
-      const pastEvents = await eventsCollection.find({ 
-        status: { $in: ['approved', 'active', 'published'] },
-        endDate: { $lt: currentDate }
-      }).sort({ endDate: -1 }).limit(8).toArray();
-      
-      console.log(`Found ${pastEvents.length} past events`);
-      res.json(pastEvents);
-    } catch (error) {
-      console.error("Error fetching past events:", error);
-      res.status(500).json({ message: "Error fetching past events" });
     }
   });
 

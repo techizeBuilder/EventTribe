@@ -95,10 +95,10 @@ export default function HomePage({ setCurrentPage }) {
   };
 
   const filteredEvents = events.filter((event) => {
-    const matchesName = event.title
+    const matchesName = (event.title || '')
       .toLowerCase()
       .includes(searchName.toLowerCase());
-    const matchesLocation = event.location
+    const matchesLocation = (event.location || '')
       .toLowerCase()
       .includes(searchLocation.toLowerCase());
     return matchesName && matchesLocation;
