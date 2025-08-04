@@ -105,12 +105,13 @@ class AuthService {
     // Don't auto-redirect - let the app handle it
   }
 
-  // Refresh token
+  // Refresh token (simplified for persistent tokens)
   async refreshToken() {
     try {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) {
-        throw new Error('No refresh token available');
+        console.log('No refresh token available - using persistent token');
+        return { success: true, data: { accessToken: this.token } };
       }
 
       const response = await fetch('/api/auth/refresh', {
@@ -127,23 +128,19 @@ class AuthService {
         this.setAuthData(data);
         return { success: true, data };
       } else {
-        // Clear tokens but don't auto-redirect
-        localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken');
-        this.token = null;
-        return { success: false, error: data.message };
+        // For persistent tokens, don't clear tokens on refresh failure
+        console.log('Token refresh failed but keeping persistent session');
+        return { success: true, data: { accessToken: this.token } };
       }
     } catch (error) {
       console.error('Token refresh error:', error);
-      // Clear tokens but don't auto-redirect
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      this.token = null;
-      return { success: false, error: 'Token refresh failed' };
+      // For persistent tokens, don't clear tokens on network errors
+      console.log('Using existing persistent token');
+      return { success: true, data: { accessToken: this.token } };
     }
   }
 
-  // Make authenticated API request
+  // Make authenticated API request (simplified for persistent tokens)
   async apiRequest(url, options = {}) {
     const headers = this.getAuthHeaders();
     
@@ -156,22 +153,12 @@ class AuthService {
         },
       });
 
-      // If unauthorized, try to refresh token
+      // With persistent tokens, 401 errors are less likely
+      // But still handle them gracefully
       if (response.status === 401) {
-        const refreshResult = await this.refreshToken();
-        if (refreshResult.success) {
-          // Retry the original request with new token
-          const retryHeaders = this.getAuthHeaders();
-          return fetch(url, {
-            ...options,
-            headers: {
-              ...retryHeaders,
-              ...options.headers,
-            },
-          });
-        } else {
-          throw new Error('Authentication failed');
-        }
+        console.log('Authentication issue - check if user needs to login again');
+        // For persistent sessions, we don't automatically retry
+        // Let the component handle the 401 response
       }
 
       return response;

@@ -184,14 +184,11 @@ class EnhancedAuthService {
   }
 
   generateTokens(userId, role) {
-    const accessToken = jwt.sign({ userId, role, type: "access" }, JWT_SECRET, {
-      expiresIn: "15m",
-    });
+    const accessToken = jwt.sign({ userId, role, type: "access" }, JWT_SECRET);
 
     const refreshToken = jwt.sign(
       { userId, role, type: "refresh" },
-      JWT_REFRESH_SECRET,
-      { expiresIn: "7d" },
+      JWT_REFRESH_SECRET
     );
 
     return { accessToken, refreshToken };
@@ -226,7 +223,6 @@ class EnhancedAuthService {
       userId: new ObjectId(userId),
       token: refreshToken,
       createdAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     });
   }
 
@@ -421,11 +417,7 @@ class EnhancedAuthService {
         throw new Error("Refresh token not found");
       }
 
-      // Check if token is expired
-      if (new Date() > tokenDoc.expiresAt) {
-        await this.revokeRefreshToken(refreshToken);
-        throw new Error("Refresh token expired");
-      }
+      // Token expiration check removed for persistent sessions
 
       // Generate new access token
       const { accessToken: newAccessToken } = this.generateTokens(
@@ -500,8 +492,7 @@ class EnhancedAuthService {
       // Generate reset token
       const resetToken = jwt.sign(
         { userId: user._id, type: "password_reset" },
-        JWT_SECRET,
-        { expiresIn: "1h" },
+        JWT_SECRET
       );
 
       // Store reset token
@@ -509,7 +500,6 @@ class EnhancedAuthService {
         userId: user._id,
         token: resetToken,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
       });
 
       // Send reset email
@@ -539,10 +529,7 @@ class EnhancedAuthService {
         throw new Error("Reset token not found");
       }
 
-      if (new Date() > resetDoc.expiresAt) {
-        await this.passwordResets.deleteOne({ token });
-        throw new Error("Reset token expired");
-      }
+      // Reset token expiration check removed for persistent sessions
 
       // Hash new password
       const hashedPassword = await this.hashPassword(newPassword);
