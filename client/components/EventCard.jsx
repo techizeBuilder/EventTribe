@@ -15,7 +15,7 @@ export default function EventCard({ event, index }) {
     return currentDate > eventEndDate;
   };
 
-  const handleAddToCart = (e) => {
+  const handleAddToCart = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -24,6 +24,11 @@ export default function EventCard({ event, index }) {
       toast.error(
         "This event is no longer available for booking as the last date has passed.",
       );
+      return;
+    }
+
+    if (!event) {
+      toast.error("Event data not available");
       return;
     }
 
@@ -42,7 +47,18 @@ export default function EventCard({ event, index }) {
       };
     }
 
-    addToCart(event.id || event._id, event.title, defaultTicket, 1);
+    console.log('Adding to cart:', {
+      eventId: event.id || event._id,
+      eventTitle: event.title,
+      ticket: defaultTicket
+    });
+
+    try {
+      await addToCart(event.id || event._id, event.title, defaultTicket, 1);
+    } catch (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add item to cart');
+    }
   };
   const d = new Date(event.startDate);
 

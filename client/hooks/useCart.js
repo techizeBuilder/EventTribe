@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 // Global cache to prevent duplicate requests across multiple components
 let globalCartData = { items: [], count: 0, lastFetch: 0 };
 let pendingFetchPromise = null;
+const THROTTLE_DELAY = 2000; // Increase throttle delay to 2 seconds
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -26,9 +27,9 @@ export const useCart = () => {
   const fetchCart = async () => {
     if (!user?.email) return;
     
-    // Throttle requests - only allow one request per second
+    // Throttle requests - only allow one request per 2 seconds
     const now = Date.now();
-    if (now - globalCartData.lastFetch < 1000 && !pendingFetchPromise) {
+    if (now - globalCartData.lastFetch < THROTTLE_DELAY && globalCartData.items.length >= 0) {
       console.log('[Cart] Using cached data to prevent excessive requests');
       setCartItems(globalCartData.items);
       setCartCount(globalCartData.count);
@@ -93,7 +94,7 @@ export const useCart = () => {
     
     // Use cached count if available and recent
     const now = Date.now();
-    if (now - globalCartData.lastFetch < 1000 && globalCartData.count !== undefined) {
+    if (now - globalCartData.lastFetch < THROTTLE_DELAY && globalCartData.count !== undefined) {
       console.log('[Cart] Using cached count to prevent excessive requests');
       setCartCount(globalCartData.count);
       return;
@@ -131,29 +132,45 @@ export const useCart = () => {
       return;
     }
 
+    console.log('[Cart] Adding to cart:', {
+      userEmail: user.email,
+      eventId,
+      eventTitle,
+      ticketType,
+      quantity
+    });
+
     try {
       // Immediately update the cart count for instant feedback
       setCartCount(prev => prev + quantity);
+
+      const requestBody = {
+        userEmail: user.email,
+        eventId,
+        eventTitle,
+        ticketType,
+        quantity
+      };
+
+      console.log('[Cart] Request body:', requestBody);
 
       const response = await fetch('/api/cart/add', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userEmail: user.email,
-          eventId,
-          eventTitle,
-          ticketType,
-          quantity
-        })
+        body: JSON.stringify(requestBody)
       });
 
       const data = await response.json();
+      console.log('[Cart] Add response:', { status: response.status, data });
       
-      if (response.ok) {
-        await fetchCart();
-        await fetchCartCount();
+      if (response.ok && data.success) {
+        // Clear cache to force fresh data
+        globalCartData = { items: [], count: 0, lastFetch: 0 };
+        
+        // Fetch updated cart data
+        await Promise.all([fetchCart(), fetchCartCount()]);
         
         // Dispatch custom event to notify other components
         setTimeout(() => {
@@ -168,13 +185,14 @@ export const useCart = () => {
         }
       } else {
         // Revert the optimistic update if the request fails
-        setCartCount(prev => prev - quantity);
+        setCartCount(prev => Math.max(0, prev - quantity));
         toast.error(data.error || 'Failed to add item to cart');
+        console.error('[Cart] Add failed:', data);
       }
     } catch (error) {
-      console.error('Error adding to cart:', error);
+      console.error('[Cart] Error adding to cart:', error);
       // Revert the optimistic update if the request fails
-      setCartCount(prev => prev - quantity);
+      setCartCount(prev => Math.max(0, prev - quantity));
       toast.error('Failed to add item to cart');
     }
   };

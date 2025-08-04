@@ -139,7 +139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!stripe) {
         return res.status(503).json({ error: "Payment processing not configured" });
       }
-      
+
       const { amount, eventId, eventTitle, ticketDetails } = req.body;
 
       if (!amount || amount <= 0) {
@@ -174,7 +174,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!stripe) {
         return res.status(503).json({ error: "Payment processing not configured" });
       }
-      
+
       const { paymentIntentId } = req.body;
 
       if (!paymentIntentId) {
@@ -208,24 +208,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== PUBLIC EVENT ROUTES ====================
-  
+
   // Debug route to check all events in database
   app.get("/api/debug/events", async (req, res) => {
     try {
       await mongoStorage.connect();
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       const allEvents = await eventsCollection.find({}).toArray();
       const statusCounts = {};
-      
+
       allEvents.forEach(event => {
         const status = event.status || 'undefined';
         statusCounts[status] = (statusCounts[status] || 0) + 1;
       });
-      
+
       console.log(`Debug: Found ${allEvents.length} total events`);
       console.log('Debug: Status distribution:', statusCounts);
-      
+
       res.json({
         totalEvents: allEvents.length,
         statusCounts,
@@ -241,18 +241,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching debug info" });
     }
   });
-  
+
   // GET /api/events/trending - Get trending events (must be before /api/events/:id)
   app.get("/api/events/trending", async (req, res) => {
     try {
       await mongoStorage.connect();
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       // For now, get recent events as "trending" (you can modify this logic)
       const trendingEvents = await eventsCollection.find({ 
         status: { $in: ['approved', 'active', 'published'] }
       }).sort({ createdAt: -1 }).limit(6).toArray();
-      
+
       console.log(`Found ${trendingEvents.length} trending events`);
       res.json(trendingEvents);
     } catch (error) {
@@ -266,14 +266,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await mongoStorage.connect();
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       // Get events where end date is in the past
       const currentDate = new Date();
       const pastEvents = await eventsCollection.find({ 
         status: { $in: ['approved', 'active', 'published'] },
         endDate: { $lt: currentDate }
       }).sort({ endDate: -1 }).limit(8).toArray();
-      
+
       console.log(`Found ${pastEvents.length} past events`);
       res.json(pastEvents);
     } catch (error) {
@@ -287,18 +287,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       await mongoStorage.connect();
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       // First try to get events with specific statuses
       let events = await eventsCollection.find({ 
         status: { $in: ['approved', 'active', 'published'] }
       }).sort({ createdAt: -1 }).toArray();
-      
+
       // If no events found with those statuses, get any events
       if (events.length === 0) {
         console.log('No events with approved/active/published status, fetching all events');
         events = await eventsCollection.find({}).sort({ createdAt: -1 }).toArray();
       }
-      
+
       console.log(`Found ${events.length} public events`);
       res.json(events);
     } catch (error) {
@@ -314,26 +314,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await mongoStorage.connect();
       const { ObjectId } = await import('mongodb');
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       let event = null;
-      
+
       // Try different query formats
       if (ObjectId.isValid(id)) {
         event = await eventsCollection.findOne({ _id: new ObjectId(id) });
       }
-      
+
       if (!event) {
         event = await eventsCollection.findOne({ _id: id });
       }
-      
+
       if (!event) {
         event = await eventsCollection.findOne({ id: id });
       }
-      
+
       if (!event) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       res.json(event);
     } catch (error) {
       console.error("Error fetching event:", error);
@@ -347,13 +347,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { category } = req.params;
       await mongoStorage.connect();
       const eventsCollection = mongoStorage.db.collection('events');
-      
+
       // Case-insensitive category search
       const categoryEvents = await eventsCollection.find({ 
         status: { $in: ['approved', 'active', 'published'] },
         category: { $regex: new RegExp(category, 'i') }
       }).sort({ createdAt: -1 }).limit(12).toArray();
-      
+
       console.log(`Found ${categoryEvents.length} events in category: ${category}`);
       res.json(categoryEvents);
     } catch (error) {
@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!stripe) {
         return res.status(503).json({ error: "Payment processing not configured" });
       }
-      
+
       const { items, amount, userEmail, userName } = req.body;
 
       console.log("✅ HIT /api/create-multi-event-payment-intent", req.body);
@@ -1237,6 +1237,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cart routes
+  app.post("/api/cart/add", async (req, res) => {
+    try {
+      const { userEmail, eventId, eventTitle, ticketType, quantity } = req.body;
+
+      console.log("Cart add request:", { userEmail, eventId, eventTitle, ticketType, quantity });
+
+      if (!userEmail || !eventId || !eventTitle || !ticketType) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      // Check if item already exists in cart
+      const existingItem = await mongoStorage.cart.findOne({
+        userEmail,
+        eventId,
+        'ticketType.name': ticketType.name
+      });
+
+      if (existingItem) {
+        // Update quantity if item exists
+        await mongoStorage.cart.updateOne(
+          { _id: existingItem._id },
+          { $inc: { quantity: parseInt(quantity) || 1 } }
+        );
+        console.log("Updated existing cart item quantity");
+      } else {
+        // Add new item to cart
+        const cartItem = {
+          userEmail,
+          eventId,
+          eventTitle,
+          ticketType: {
+            name: ticketType.name,
+            price: parseFloat(ticketType.price) || 25.0,
+            description: ticketType.description || "Standard event ticket"
+          },
+          quantity: parseInt(quantity) || 1,
+          addedAt: new Date()
+        };
+
+        const result = await mongoStorage.cart.insertOne(cartItem);
+        console.log("Added new cart item:", result.insertedId);
+      }
+
+      res.json({ success: true, message: "Item added to cart" });
+    } catch (error) {
+      console.error("Error adding to cart:", error);
+      res.status(500).json({ error: "Failed to add item to cart" });
+    }
+  });
+app.get("/api/cart/:userEmail", async (req, res) => {
+    try {
+      const { userEmail } = req.params;
+      const { mongoStorage } = await import('./mongodb-storage.js');
+      await mongoStorage.connect();
+
+      const cartItems = await mongoStorage.getCart(userEmail);
+      const count = await mongoStorage.getCartCount(userEmail);
+
+      console.log(`[Cart] Retrieved ${cartItems?.length || 0} items for user ${userEmail}`);
+
+      res.json({ 
+        items: cartItems || [], 
+        count: count || 0,
+        success: true 
+      });
+    } catch (error) {
+      console.error("Error fetching cart:", error);
+      res.status(500).json({ error: "Failed to fetch cart", items: [], count: 0 });
+    }
+  });
   const httpServer = createServer(app);
   return httpServer;
 }
