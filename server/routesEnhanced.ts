@@ -1837,7 +1837,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       const { eventId } = req.params;
       const { status, reason } = req.body;
-      
+
       // Import ObjectId
       const { ObjectId } = await import("mongodb");
 
@@ -2249,24 +2249,19 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Save multi-event booking after successful payment
-  app.post("/api/save-multi-event-booking", async (req, res) => {
+  // POST /api/save-multi-event-booking - Save booking after successful payment
+  app.post('/api/save-multi-event-booking', async (req, res) => {
     try {
-      const { paymentIntentId, cartItems, userEmail, userName, totalAmount } =
-        req.body;
+      const { paymentIntentId, cartItems, userEmail, userName, totalAmount, items } = req.body;
 
-      console.log("Saving multi-event booking:", {
-        paymentIntentId,
-        cartItems,
-        userEmail,
-        userName,
-        totalAmount,
-      });
+      console.log('Saving multi-event booking:', { paymentIntentId, cartItems, userEmail, userName, totalAmount, items });
 
-      if (!paymentIntentId || !cartItems || cartItems.length === 0) {
-        return res
-          .status(400)
-          .json({ error: "Missing required booking information" });
+      // Use items if cartItems is undefined
+      const bookingItems = cartItems || items;
+      const bookingAmount = totalAmount !== undefined ? totalAmount : (bookingItems && bookingItems.length > 0 ? bookingItems.reduce((sum, item) => sum + (item.total || item.price * item.quantity), 0) : 0);
+
+      if (!paymentIntentId || !bookingItems || !userEmail || !userName) {
+        return res.status(400).json({ error: 'Missing required booking data', received: { paymentIntentId: !!paymentIntentId, bookingItems: !!bookingItems, userEmail, userName } });
       }
 
       // Verify payment was successful
@@ -2277,11 +2272,10 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Payment not completed" });
       }
 
-      // Create separate booking record for each event
+      // Create bookings for each event
       const bookings = [];
-      await mongoStorage.connect();
 
-      for (const item of cartItems) {
+      for (const item of bookingItems) {
         const booking = {
           bookingId: `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           paymentIntentId,
@@ -2295,9 +2289,9 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
               total: item.total,
             },
           ],
-          userEmail: userEmail || "guest@example.com",
-          userName: userName || "Guest User",
-          totalAmount: item.total,
+          userEmail,
+          userName,
+          totalAmount: item.total || item.price * item.quantity || bookingAmount,
           currency: paymentIntent.currency,
           status: "confirmed",
           bookingDate: new Date(),
@@ -2847,7 +2841,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       res.json({ success: true, item: result });
     } catch (error: any) {
       console.error("Add to cart error:", error);
-      res.status(500).json({ error: "Failed to add item to cart" });
+      res.status(500.json({ error: "Failed to add item to cart" });
     }
   });
 

@@ -114,20 +114,23 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
             userName,
           });
 
-          const bookingResponse = await fetch("/api/save-multi-event-booking", {
-            method: "POST",
+          // Save booking after successful payment
+          const saveResponse = await fetch('/api/save-multi-event-booking', {
+            method: 'POST',
             headers: {
-              "Content-Type": "application/json",
+              'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               paymentIntentId: paymentIntent.id,
-              items: cartItems,
+              cartItems: cartItems,
+              items: cartItems, // Send both for compatibility
               userEmail,
               userName,
+              totalAmount: totalAmount
             }),
           });
 
-          const bookingData = await bookingResponse.json();
+          const bookingData = await saveResponse.json();
 
           if (bookingData.success) {
             toast.success("Payment successful! All tickets confirmed.");

@@ -922,6 +922,51 @@ router.delete('/team/:id', async (req, res) => {
   }
 });
 
+// ==================== BOOKINGS ====================
+
+// GET /api/organizer/bookings - Get all bookings for organizer's events
+router.get('/bookings', async (req, res) => {
+  try {
+    const organizerId = req.user._id;
+    
+    // Use MongoDB directly
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    
+    const eventsCollection = mongoStorage.db.collection('events');
+    const bookingsCollection = mongoStorage.db.collection('bookings');
+    
+    // Get all events for this organizer
+    const events = await eventsCollection.find({ organizerId }).toArray();
+    const eventIds = events.map(event => event._id.toString());
+    
+    if (eventIds.length === 0) {
+      return res.json([]);
+    }
+    
+    // Get all bookings for these events
+    const bookings = await bookingsCollection.find({
+      eventId: { $in: eventIds }
+    }).sort({ createdAt: -1 }).toArray();
+    
+    // Enrich bookings with event information
+    const enrichedBookings = bookings.map(booking => {
+      const event = events.find(e => e._id.toString() === booking.eventId);
+      return {
+        ...booking,
+        eventTitle: event ? event.title : 'Unknown Event',
+        eventDate: event ? event.startDate : null,
+        eventLocation: event ? event.location : null
+      };
+    });
+    
+    res.json(enrichedBookings);
+  } catch (error) {
+    console.error('Get organizer bookings error:', error);
+    res.status(500).json({ message: 'Failed to fetch bookings', error: error.message });
+  }
+});
+
 // ==================== ANALYTICS ====================
 
 // POST /api/organizer/analytics - Create analytics entry
