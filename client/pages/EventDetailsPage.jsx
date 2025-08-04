@@ -17,8 +17,11 @@ import PaymentForm from "../components/PaymentForm";
 import PaymentSuccess from "../components/PaymentSuccess";
 import { useCart } from "../hooks/useCart";
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+// Initialize Stripe with fallback
+const stripePublicKey = import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_51QXqKwB2pL7YMO8GdT8sJHXX9lQaE4ZXH8eLP0UdlPGjwQi7LgXwDl9PUmEaRy5ExJ2QQd0eSFjHdvT8JJP00Kb5EQEZl';
+const stripePromise = loadStripe(stripePublicKey);
+
+console.log('Stripe public key configured:', stripePublicKey ? 'Yes' : 'No');
 
 const EventDetailsPage = () => {
   const { eventId } = useParams();

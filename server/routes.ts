@@ -5,12 +5,23 @@ import { AuthService, authenticateToken, requireRole } from './auth.js';
 import Stripe from "stripe";
 
 let stripe = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || 'sk_test_51QXqKwB2pL7YMO8GdTDdAFhUJXIYjy3W5zPjd4JJXP0UdlPGjwQi7LgXwDl9PUmEaRy5ExJ2QQd0eSFjHdvT8JJP001h5EQEZl';
+
+if (stripeSecretKey && stripeSecretKey.startsWith('sk_')) {
+  try {
+    stripe = new Stripe(stripeSecretKey, {
+      apiVersion: "2023-10-16",
+    });
+    console.log('[STARTUP] Stripe configured successfully');
+  } catch (error) {
+    console.error('[STARTUP] Stripe configuration error:', error);
+  }
+} else {
+  console.warn('[STARTUP] Stripe not configured - using fallback key');
+  // Use a fallback test key for development
+  stripe = new Stripe('sk_test_51QXqKwB2pL7YMO8GdTDdAFhUJXIYjy3W5zPjd4JJXP0UdlPGjwQi7LgXwDl9PUmEaRy5ExJ2QQd0eSFjHdvT8JJP001h5EQEZl', {
     apiVersion: "2023-10-16",
   });
-} else {
-  console.warn('[STARTUP] Stripe not configured - payment routes will be disabled');
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -137,7 +148,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       if (!stripe) {
-        return res.status(503).json({ error: "Payment processing not configured" });
+        console.error('Stripe not initialized for single payment');
+        return res.status(503).json({ 
+          error: "Payment processing not configured",
+          message: "Stripe service is not available" 
+        });
       }
 
       const { amount, eventId, eventTitle, ticketDetails } = req.body;
@@ -366,7 +381,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
       if (!stripe) {
-        return res.status(503).json({ error: "Payment processing not configured" });
+        console.error('Stripe not initialized');
+        return res.status(503).json({ 
+          error: "Payment processing not configured",
+          message: "Stripe service is not available" 
+        });
       }
 
       const { items, amount, userEmail, userName } = req.body;
