@@ -1,11 +1,11 @@
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
-import { FiShoppingCart, FiX } from 'react-icons/fi'
-import { useCart } from '../hooks/useCart'
-import { toast } from 'react-hot-toast'
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { FiShoppingCart, FiX } from "react-icons/fi";
+import { useCart } from "../hooks/useCart";
+import { toast } from "react-hot-toast";
 
 export default function EventCard({ event, index }) {
-  const { addToCart } = useCart()
+  const { addToCart } = useCart();
 
   // Check if event has expired
   const isEventExpired = () => {
@@ -16,36 +16,52 @@ export default function EventCard({ event, index }) {
   };
 
   const handleAddToCart = (e) => {
-    e.preventDefault()
-    e.stopPropagation()
+    e.preventDefault();
+    e.stopPropagation();
 
     // Check if event has expired
     if (isEventExpired()) {
-      toast.error("This event is no longer available for booking as the last date has passed.");
+      toast.error(
+        "This event is no longer available for booking as the last date has passed.",
+      );
       return;
     }
 
     // Create a default ticket if none exists
     let defaultTicket;
     if (event.tickets && event.tickets.length > 0) {
-      defaultTicket = event.tickets[0]
+      defaultTicket = event.tickets[0];
     } else if (event.ticketTypes && event.ticketTypes.length > 0) {
-      defaultTicket = event.ticketTypes[0]
+      defaultTicket = event.ticketTypes[0];
     } else {
       // Create default ticket structure
       defaultTicket = {
-        name: 'General Admission',
-        price: 25.00,
-        description: 'Standard event ticket'
-      }
+        name: "General Admission",
+        price: 25.0,
+        description: "Standard event ticket",
+      };
     }
 
-    addToCart(event.id || event._id, event.title, defaultTicket, 1)
-  }
+    addToCart(event.id || event._id, event.title, defaultTicket, 1);
+  };
+  const d = new Date(event.startDate);
 
+  const dateString = d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const timeString = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  console.log("event", event);
   return (
     <div className="relative group">
-      <Link to={`/event/${event.id}`}>
+      <Link to={`/event/${event._id}`}>
         <motion.div
           className="bg-slate-800/80 backdrop-blur-sm rounded-2xl overflow-hidden border border-slate-700/50 event-card-hover font-sans cursor-pointer"
           initial={{ opacity: 0, y: 20 }}
@@ -73,31 +89,52 @@ export default function EventCard({ event, index }) {
             </h3>
 
             <div className="space-y-2">
-              
               <div className="flex items-center text-slate-400 text-sm">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"
+                    clipRule="evenodd"
+                  />
                 </svg>
-                <span className="font-medium">{event.date} • {event.time}</span>
+                <span className="font-medium">
+                  {dateString} • {timeString}
+                </span>
               </div>
 
               <div className="flex items-center text-slate-400 text-sm">
-                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                    clipRule="evenodd"
+                  />
                 </svg>
-                <span className="font-medium">{event.location}</span>
+                <span className="font-medium">{event.venue}</span>
               </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between">
               <span className="text-white font-semibold text-sm">
-                From ${(() => {
+                From $
+                {(() => {
                   if (event.tickets && event.tickets.length > 0) {
-                    return event.tickets[0].price
-                  } else if (event.ticketTypes && event.ticketTypes.length > 0) {
-                    return event.ticketTypes[0].price
+                    return event.tickets[0].price;
+                  } else if (
+                    event.ticketTypes &&
+                    event.ticketTypes.length > 0
+                  ) {
+                    return event.ticketTypes[0].price;
                   }
-                  return '25.00'
+                  return "25.00";
                 })()}
               </span>
             </div>
@@ -124,5 +161,5 @@ export default function EventCard({ event, index }) {
         </motion.button>
       )}
     </div>
-  )
+  );
 }

@@ -10,7 +10,7 @@ export default function HomePage({ setCurrentPage }) {
   const [showPreloader, setShowPreloader] = useState(false);
   const [showAdditionalContent, setShowAdditionalContent] = useState(false);
   const [hasTriggered, setHasTriggered] = useState(false);
-  
+
   // Dynamic event states
   const [events, setEvents] = useState([]);
   const [trendingEvents, setTrendingEvents] = useState([]);
@@ -26,40 +26,40 @@ export default function HomePage({ setCurrentPage }) {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all events
-      const eventsResponse = await fetch('/api/events');
+      const eventsResponse = await fetch("/api/events");
       if (eventsResponse.ok) {
         const eventsData = await eventsResponse.json();
+
         setEvents(eventsData);
       } else {
-        toast.error('Failed to load events');
+        toast.error("Failed to load events");
       }
 
       // Fetch trending events
-      const trendingResponse = await fetch('/api/events/trending');
+      const trendingResponse = await fetch("/api/events/trending");
       if (trendingResponse.ok) {
         const trendingData = await trendingResponse.json();
         setTrendingEvents(trendingData);
       }
 
       // Fetch past events
-      const pastResponse = await fetch('/api/events/past');
+      const pastResponse = await fetch("/api/events/past");
       if (pastResponse.ok) {
         const pastData = await pastResponse.json();
         setPastEvents(pastData);
       }
 
       // Fetch a sample category events for display
-      const techResponse = await fetch('/api/events/category/Technology');
+      const techResponse = await fetch("/api/events/category/Technology");
       if (techResponse.ok) {
         const techData = await techResponse.json();
-        setCategoryEvents(prev => ({ ...prev, Technology: techData }));
+        setCategoryEvents((prev) => ({ ...prev, Technology: techData }));
       }
-
     } catch (error) {
-      console.error('Error fetching events:', error);
-      toast.error('Failed to load events data');
+      console.error("Error fetching events:", error);
+      toast.error("Failed to load events data");
     } finally {
       setLoading(false);
     }
@@ -78,14 +78,14 @@ export default function HomePage({ setCurrentPage }) {
     }
 
     setSelectedCategory(category);
-    
+
     // Fetch events for this category if not already loaded
     if (!categoryEvents[category]) {
       try {
         const response = await fetch(`/api/events/category/${category}`);
         if (response.ok) {
           const categoryData = await response.json();
-          setCategoryEvents(prev => ({ ...prev, [category]: categoryData }));
+          setCategoryEvents((prev) => ({ ...prev, [category]: categoryData }));
         }
       } catch (error) {
         console.error(`Error fetching ${category} events:`, error);
@@ -95,10 +95,10 @@ export default function HomePage({ setCurrentPage }) {
   };
 
   const filteredEvents = events.filter((event) => {
-    const matchesName = (event.title || '')
+    const matchesName = (event.title || "")
       .toLowerCase()
       .includes(searchName.toLowerCase());
-    const matchesLocation = (event.location || '')
+    const matchesLocation = (event.location || "")
       .toLowerCase()
       .includes(searchLocation.toLowerCase());
     return matchesName && matchesLocation;
@@ -149,7 +149,7 @@ export default function HomePage({ setCurrentPage }) {
       }
     };
   }, [hasTriggered, hasBypassedPreloader, showAdditionalContent]);
-
+  console.log("filter", filteredEvents);
   return (
     <div className="min-h-screen font-sans">
       {/* Scroll-triggered Preloader */}
@@ -243,13 +243,17 @@ export default function HomePage({ setCurrentPage }) {
               transition={{ duration: 0.8, delay: 0.4 }}
             >
               {loading ? (
-                <div className="text-white text-center py-8">Loading events...</div>
+                <div className="text-white text-center py-8">
+                  Loading events...
+                </div>
               ) : events.length > 0 ? (
                 <EventCarousel events={events.slice(0, 3)} />
               ) : (
                 <div className="text-white text-center py-8">
                   <p>No events available</p>
-                  <p className="text-sm text-gray-400 mt-2">Check back soon for new events!</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Check back soon for new events!
+                  </p>
                 </div>
               )}
             </motion.div>
@@ -329,7 +333,9 @@ export default function HomePage({ setCurrentPage }) {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {loading ? (
-              <div className="col-span-full text-white text-center py-8">Loading events...</div>
+              <div className="col-span-full text-white text-center py-8">
+                Loading events...
+              </div>
             ) : filteredEvents.length > 0 ? (
               filteredEvents.map((event, index) => (
                 <EventCard key={event.id} event={event} index={index} />
@@ -337,7 +343,9 @@ export default function HomePage({ setCurrentPage }) {
             ) : (
               <div className="col-span-full text-white text-center py-8">
                 <p>No events found</p>
-                <p className="text-sm text-gray-400 mt-2">Try adjusting your search criteria</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Try adjusting your search criteria
+                </p>
               </div>
             )}
           </motion.div>
@@ -372,7 +380,9 @@ export default function HomePage({ setCurrentPage }) {
                   transition={{ duration: 0.8, delay: 0.4 }}
                 >
                   {loading ? (
-                    <div className="col-span-full text-white text-center py-8">Loading trending events...</div>
+                    <div className="col-span-full text-white text-center py-8">
+                      Loading trending events...
+                    </div>
                   ) : trendingEvents.length > 0 ? (
                     trendingEvents.map((event, index) => (
                       <motion.div
@@ -387,7 +397,9 @@ export default function HomePage({ setCurrentPage }) {
                   ) : (
                     <div className="col-span-full text-white text-center py-8">
                       <p>No trending events</p>
-                      <p className="text-sm text-gray-400 mt-2">Stay tuned for popular events!</p>
+                      <p className="text-sm text-gray-400 mt-2">
+                        Stay tuned for popular events!
+                      </p>
                     </div>
                   )}
                 </motion.div>
@@ -419,7 +431,7 @@ export default function HomePage({ setCurrentPage }) {
                 >
                   {[
                     "TECHNOLOGY",
-                    "MUSIC", 
+                    "MUSIC",
                     "BUSINESS",
                     "FITNESS",
                     "NETWORKING",
@@ -429,7 +441,9 @@ export default function HomePage({ setCurrentPage }) {
                       key={category}
                       onClick={() => handleCategoryClick(category)}
                       className={`bg-slate-800/60 backdrop-blur-sm rounded-xl p-6 text-center hover:bg-slate-700/60 transition-all duration-300 cursor-pointer border border-slate-700/50 hover:border-slate-600/60 ${
-                        selectedCategory === category ? 'bg-red-600/20 border-red-500/50' : ''
+                        selectedCategory === category
+                          ? "bg-red-600/20 border-red-500/50"
+                          : ""
                       }`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -442,7 +456,8 @@ export default function HomePage({ setCurrentPage }) {
                       </h3>
                       {categoryEvents[category] && (
                         <p className="text-slate-400 text-xs mt-2">
-                          {categoryEvents[category].length} event{categoryEvents[category].length !== 1 ? 's' : ''}
+                          {categoryEvents[category].length} event
+                          {categoryEvents[category].length !== 1 ? "s" : ""}
                         </p>
                       )}
                     </motion.div>

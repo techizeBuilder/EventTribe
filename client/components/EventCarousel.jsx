@@ -17,6 +17,19 @@ export default function EventCarousel({ events }) {
   const goToSlide = (index) => {
     setCurrentIndex(index);
   };
+  const d = new Date(events[currentIndex].startDate);
+
+  const dateString = d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const timeString = d.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 
   return (
     <div className="relative w-full lg:pt-4 mx-auto">
@@ -32,7 +45,7 @@ export default function EventCarousel({ events }) {
             className="relative h-64 sm:h-80 md:h-96 rounded-2xl overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50"
           >
             <Link
-              to={`/event/${events[currentIndex].id}`}
+              to={`/event/${events[currentIndex]._id}`}
               className="block h-full"
             >
               <div className="absolute inset-0">
@@ -68,7 +81,10 @@ export default function EventCarousel({ events }) {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span>{events[currentIndex].date}</span>
+                    <span>
+                      {" "}
+                      {dateString} • {timeString}
+                    </span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <svg
@@ -82,7 +98,7 @@ export default function EventCarousel({ events }) {
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span>{events[currentIndex].location}</span>
+                    <span>{events[currentIndex].venue}</span>
                   </div>
                 </div>
               </div>
