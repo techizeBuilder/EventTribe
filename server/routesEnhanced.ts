@@ -1,8 +1,11 @@
 import type { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import { mongoStorage } from "./mongodb-storage.js";
-import { AuthService, authenticateToken, requireRole } from "./auth.js";
-
+import { AuthService, authenticateToken } from "./auth.js";
+import {
+  requireRole,
+  requireVerification,
+} from "./middleware/authMiddleware.js";
 // Extend Request type to include user property
 interface AuthenticatedRequest extends Request {
   user?: any;
@@ -26,7 +29,135 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       enhanced: true,
     });
   });
+  app.get(
+    "/api/organizer/dashboard",
+    authenticateToken,
+    requireRole(["organizer"]),
+    requireVerification("both"),
+    async (req, res) => {
+      try {
+        // Organizer dashboard logic here
+        res.json({
+          message: "Welcome to organizer dashboard",
+          user: req.user,
+        });
+      } catch (error) {
+        res.status(500).json({ message: "Failed to load organizer dashboard" });
+      }
+    },
+  );
+  // TEMPORARY: Organizer bookings without authentication for testing
+  app.get("/api/test/organizer-bookings-simple", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({})
+        .toArray();
 
+      // Group by event
+      const groupedBookings = bookings.reduce((acc, booking) => {
+        const eventTitle = booking.eventTitle || "Unknown Event";
+        if (!acc[eventTitle]) acc[eventTitle] = [];
+        acc[eventTitle].push(booking);
+        return acc;
+      }, {});
+
+      // Return bookings in the format expected by the frontend
+      const formattedBookings = bookings.map((b) => ({
+        _id: b._id,
+        bookingId: b.bookingId,
+        eventTitle: b.eventTitle,
+        attendeeName: b.attendeeName,
+        attendeeEmail: b.attendeeEmail,
+        status: b.status,
+        paymentStatus: b.paymentStatus || "paid",
+        totalAmount: b.totalAmount,
+        amount: b.totalAmount, // Fallback for older code
+        bookingDate: b.bookingDate,
+        createdAt: b.createdAt,
+      }));
+
+      res.json(formattedBookings);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // GET /api/test/organization-earnings-simple - No auth organization earnings endpoint
+  app.get("/api/test/organization-earnings-simple", async (req, res) => {
+    try {
+      await mongoStorage.connect();
+
+      // Fetch all bookings from the database
+      const bookings = await mongoStorage.db
+        .collection("bookings")
+        .find({})
+        .toArray();
+      console.log(
+        `Found ${bookings.length} total bookings for earnings calculation`,
+      );
+
+      // Group bookings by event title
+      const eventGroups = bookings.reduce((acc, booking) => {
+        const eventTitle = booking.eventTitle || "Unknown Event";
+        if (!acc[eventTitle]) {
+          acc[eventTitle] = [];
+        }
+        acc[eventTitle].push(booking);
+        return acc;
+      }, {});
+
+      // Calculate earnings per event
+      const eventEarnings = Object.entries(eventGroups).map(
+        ([eventTitle, eventBookings]) => {
+          const revenue = eventBookings.reduce((total, booking) => {
+            return total + (booking.totalAmount || booking.amount || 0);
+          }, 0);
+
+          const ticketsSold = eventBookings.length; // Each booking is at least 1 ticket
+
+          return {
+            title: eventTitle,
+            revenue: revenue,
+            ticketsSold: ticketsSold,
+            bookingsCount: eventBookings.length,
+            createdAt: eventBookings[0]?.createdAt || new Date(),
+          };
+        },
+      );
+
+      // Calculate totals
+      const totalRevenue = eventEarnings.reduce(
+        (total, event) => total + event.revenue,
+        0,
+      );
+      const totalTicketsSold = eventEarnings.reduce(
+        (total, event) => total + event.ticketsSold,
+        0,
+      );
+      const totalEvents = eventEarnings.length;
+
+      const earningsData = {
+        totalRevenue,
+        totalTicketsSold,
+        totalEvents,
+        events: eventEarnings.sort((a, b) => b.revenue - a.revenue), // Sort by revenue descending
+      };
+
+      console.log("Organization earnings calculated:", {
+        totalRevenue: earningsData.totalRevenue,
+        totalTicketsSold: earningsData.totalTicketsSold,
+        totalEvents: earningsData.totalEvents,
+        eventTitles: earningsData.events.map((e) => e.title),
+      });
+
+      res.json(earningsData);
+    } catch (error) {
+      console.error("Organization earnings calculation error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
   // Enhanced organizer bookings endpoint with better filtering
   app.get(
     "/api/enhanced/organizer/bookings",
