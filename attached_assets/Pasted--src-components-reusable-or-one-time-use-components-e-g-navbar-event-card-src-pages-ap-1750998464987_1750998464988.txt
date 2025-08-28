@@ -1,0 +1,70 @@
+
+src/components/: reusable or one-time-use components (e.g., navbar, event card).
+
+src/pages/: app pages like Home, About, Login, etc.
+
+main.jsx: Render <App /> and wrap it with BrowserRouter, Provider, and Toaster.
+
+utils/: utility functions including Axios instance.
+
+App.jsx: Define all page routes, include common components (like Navbar).
+
+🧾 Project Overview
+This is a platform for creators and influencers to launch, manage, and monetize in-person events.
+
+Functions as an "OS for Creators", providing tools for:
+✅ Event creation and hosting
+🎟️ Ticket sales and payment management
+👥 Team management (e.g., DJs, staff payouts)
+🌐 Community engagement (followers → attendees).
+
+🎨 UI Overview
+🎨 Theme: Use slate/gray-based modern color palette.
+
+🚀 Navbar
+Left: Web logo
+Right: 4 Links → About Us, Events, Login, Signup
+Responsive design
+Transparent on scroll, normal on top
+
+🏠 Home Page
+Hero Section:
+Left: Texts + About Us button
+Right: 3 Event Cards auto-swiping carousel (infinite)
+Main Section:
+Search by input and location, with a Search button
+Below: Grid of Event Cards (4 per row)
+ℹ️ About Us Page
+Use Framer Motion for animated UI
+Use images, responsive and visually attractive
+
+🔐 Login Page
+Select role: Attendee, Organizer, Promoter
+Inputs: Email, Password (with eye toggle)
+Buttons: Login, “Don’t have an account? Signup”, “Forget Password?”
+
+📝 Signup Page
+Role Selection: Attendee, Organizer
+Fields:
+Attendee: firstname, lastname, email, dob, phone, instaHandle, password, confirmPassword
+Organizer: firstname, lastname, email, currency, dob, phone, organizationName, password, confirmPassword
+
+🎫 Event Details Page
+Display event details
+Include a Checkout button for payment
+
+🔁 Event Card Design
+Each card should show:
+Event Image
+Event Name
+Event Location
+Event Timing
+
+⚠️ Instructions
+🔒 No backend integration for now — use static data for UI rendering.
+
+⚙️ Everything should be hardcoded/static (will integrate API later).
+
+💡 UI must be modern, attractive, and responsive exact like provided screenshots. it should be match with screenshots
+
+

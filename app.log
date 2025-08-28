@@ -1,0 +1,5 @@
+[8:39:08 AM] Connected to MongoDB successfully
+[8:39:09 AM] Express.js server running on port 5000
+[8:39:09 AM] Frontend available at http://localhost:5000
+[8:39:09 AM] API endpoints available at http://localhost:5000/api
+[8:39:09 AM] MongoDB connected and ready
