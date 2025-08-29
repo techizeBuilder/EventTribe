@@ -14,58 +14,30 @@ import {
 export default function AdminAnalytics() {
   const [analyticsData, setAnalyticsData] = useState({
     overview: {
-      totalRevenue: 125000,
-      totalEvents: 342,
-      totalUsers: 2847,
-      avgTicketPrice: 45.50,
-      conversionRate: 12.5,
-      growthRate: 23.8
+      totalRevenue: 0,
+      totalEvents: 0,
+      totalUsers: 0,
+      avgTicketPrice: 0,
+      conversionRate: 0,
+      growthRate: 0
     },
-    revenueData: [
-      { month: "Jan", revenue: 8500 },
-      { month: "Feb", revenue: 12000 },
-      { month: "Mar", revenue: 15500 },
-      { month: "Apr", revenue: 18000 },
-      { month: "May", revenue: 21000 },
-      { month: "Jun", revenue: 25000 },
-      { month: "Jul", revenue: 25000 }
-    ],
-    userGrowth: [
-      { month: "Jan", users: 180 },
-      { month: "Feb", users: 245 },
-      { month: "Mar", users: 320 },
-      { month: "Apr", users: 410 },
-      { month: "May", users: 520 },
-      { month: "Jun", users: 650 },
-      { month: "Jul", users: 780 }
-    ],
-    eventCategories: [
-      { category: "Technology", count: 85, percentage: 25 },
-      { category: "Music", count: 68, percentage: 20 },
-      { category: "Business", count: 58, percentage: 17 },
-      { category: "Sports", count: 45, percentage: 13 },
-      { category: "Art", count: 42, percentage: 12 },
-      { category: "Food", count: 44, percentage: 13 }
-    ],
-    topEvents: [
-      { name: "Tech Conference 2025", attendees: 850, revenue: 12750 },
-      { name: "Music Festival", attendees: 1200, revenue: 18000 },
-      { name: "Business Summit", attendees: 650, revenue: 9750 },
-      { name: "Art Exhibition", attendees: 420, revenue: 6300 },
-      { name: "Food Festival", attendees: 380, revenue: 5700 }
-    ]
+    revenueData: [],
+    userGrowth: [],
+    eventCategories: [],
+    topEvents: []
   });
   const [loading, setLoading] = useState(true);
-  const [selectedPeriod, setSelectedPeriod] = useState("7d");
+  const [selectedPeriod, setSelectedPeriod] = useState("30d");
 
   useEffect(() => {
+    setLoading(true);
     fetchAnalytics();
   }, [selectedPeriod]);
 
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem("adminToken");
-      const response = await fetch("/api/admin/analytics", {
+      const response = await fetch(`/api/admin/analytics?period=${selectedPeriod}`, {
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
@@ -74,17 +46,44 @@ export default function AdminAnalytics() {
       
       if (response.ok) {
         const data = await response.json();
-        setAnalyticsData(prev => ({
-          ...prev,
-          overview: {
-            totalRevenue: data.totalRevenue || 0,
-            totalEvents: data.totalEvents || 0,
-            totalUsers: data.totalUsers || 0,
-            avgTicketPrice: data.avgTicketPrice || 0,
-            conversionRate: data.conversionRate || 0,
-            growthRate: data.growthRate || 0
-          }
-        }));
+        
+        // Transform chart data for frontend format
+        const revenueData = data.bookingsOverTime?.map(item => ({
+          month: new Date(item._id).toLocaleDateString('en-US', { month: 'short' }),
+          revenue: item.revenue || 0
+        })) || [];
+        
+        const userGrowth = data.userGrowthData?.map(item => ({
+          month: new Date(item._id).toLocaleDateString('en-US', { month: 'short' }),
+          users: item.count || 0
+        })) || [];
+        
+        const eventCategories = data.eventsByCategory?.map(item => ({
+          category: item._id || 'Unknown',
+          count: item.count || 0,
+          percentage: 0 // Calculate percentage below
+        })) || [];
+        
+        // Calculate percentages for categories
+        const totalCategoryEvents = eventCategories.reduce((sum, cat) => sum + cat.count, 0);
+        eventCategories.forEach(cat => {
+          cat.percentage = totalCategoryEvents > 0 ? Math.round((cat.count / totalCategoryEvents) * 100) : 0;
+        });
+        
+        setAnalyticsData({
+          overview: data.overview || {
+            totalRevenue: 0,
+            totalEvents: 0,
+            totalUsers: 0,
+            avgTicketPrice: 0,
+            conversionRate: 0,
+            growthRate: 0
+          },
+          revenueData,
+          userGrowth,
+          eventCategories,
+          topEvents: data.topEvents || []
+        });
       } else {
         console.error("Failed to fetch analytics data");
       }
@@ -138,6 +137,7 @@ export default function AdminAnalytics() {
             value={selectedPeriod}
             onChange={(e) => setSelectedPeriod(e.target.value)}
             className="bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none"
+            data-testid="select-time-period"
           >
             <option value="7d">Last 7 days</option>
             <option value="30d">Last 30 days</option>

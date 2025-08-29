@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import { 
   FiUsers, 
@@ -13,6 +14,7 @@ import {
 } from "react-icons/fi";
 
 export default function AdminOverview() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalEvents: 0,
@@ -285,19 +287,35 @@ export default function AdminOverview() {
       >
         <h3 className="text-lg font-semibold text-white mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors">
+          <button 
+            onClick={() => navigate('/admin/dashboard/users')}
+            className="bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-lg transition-colors transform hover:scale-105"
+            title="Navigate to Users Management"
+          >
             <FiUsers className="w-6 h-6 mb-2" />
             <span className="text-sm">Manage Users</span>
           </button>
-          <button className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition-colors">
+          <button 
+            onClick={() => navigate('/admin/dashboard/events')}
+            className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg transition-colors transform hover:scale-105"
+            title="Navigate to Events Management"
+          >
             <FiCalendar className="w-6 h-6 mb-2" />
             <span className="text-sm">View Events</span>
           </button>
-          <button className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg transition-colors">
+          <button 
+            onClick={() => navigate('/admin/dashboard/analytics')}
+            className="bg-purple-600 hover:bg-purple-700 text-white p-4 rounded-lg transition-colors transform hover:scale-105"
+            title="Navigate to Analytics"
+          >
             <FiBarChart className="w-6 h-6 mb-2" />
             <span className="text-sm">Analytics</span>
           </button>
-          <button className="bg-orange-600 hover:bg-orange-700 text-white p-4 rounded-lg transition-colors">
+          <button 
+            onClick={() => navigate('/admin/dashboard/settings')}
+            className="bg-orange-600 hover:bg-orange-700 text-white p-4 rounded-lg transition-colors transform hover:scale-105"
+            title="Navigate to Settings & Revenue"
+          >
             <FiDollarSign className="w-6 h-6 mb-2" />
             <span className="text-sm">Revenue</span>
           </button>

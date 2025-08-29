@@ -389,16 +389,32 @@ router.get('/analytics', async (req, res) => {
     
     const eventsCollection = mongoStorage.db.collection('events');
     const bookingsCollection = mongoStorage.db.collection('bookings');
+    const usersCollection = mongoStorage.db.collection('auth_users');
     
-    // Get events by category
+    // Parse period parameter
+    const { period = '30d' } = req.query;
+    
+    // Calculate date range based on period
+    let daysBack;
+    switch(period) {
+      case '7d': daysBack = 7; break;
+      case '30d': daysBack = 30; break;
+      case '90d': daysBack = 90; break;
+      case '1y': daysBack = 365; break;
+      default: daysBack = 30;
+    }
+    
+    const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    
+    // Get events by category (filtered by date)
     const eventsByCategory = await eventsCollection.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
       { $group: { _id: '$category', count: { $sum: 1 } } }
     ]).toArray();
     
-    // Get bookings over time (last 7 days)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Get bookings over time within the period
     const bookingsOverTime = await bookingsCollection.aggregate([
-      { $match: { createdAt: { $gte: sevenDaysAgo } } },
+      { $match: { createdAt: { $gte: startDate } } },
       { 
         $group: { 
           _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
@@ -409,19 +425,80 @@ router.get('/analytics', async (req, res) => {
       { $sort: { '_id': 1 } }
     ]).toArray();
     
-    // Sample data for demonstration
+    // Get user growth data
+    const userGrowthData = await usersCollection.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { 
+        $group: { 
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id': 1 } }
+    ]).toArray();
+    
+    // Get top performing events
+    const topEvents = await eventsCollection.aggregate([
+      { $match: { createdAt: { $gte: startDate } } },
+      { $lookup: {
+          from: 'bookings',
+          localField: '_id',
+          foreignField: 'eventId',
+          as: 'bookings'
+        }
+      },
+      { $addFields: {
+          bookingCount: { $size: '$bookings' },
+          totalRevenue: { $sum: '$bookings.totalAmount' }
+        }
+      },
+      { $sort: { bookingCount: -1 } },
+      { $limit: 5 },
+      { $project: {
+          name: '$title',
+          bookings: '$bookingCount',
+          revenue: '$totalRevenue'
+        }
+      }
+    ]).toArray();
+    
+    // Calculate comprehensive metrics
+    const totalRevenue = bookingsOverTime.reduce((sum, day) => sum + (day.revenue || 0), 0);
+    const totalBookings = bookingsOverTime.reduce((sum, day) => sum + (day.count || 0), 0);
+    const totalEvents = await eventsCollection.countDocuments({ createdAt: { $gte: startDate } });
+    const totalUsers = await usersCollection.countDocuments({ createdAt: { $gte: startDate } });
+    
+    // Calculate metrics
+    const avgTicketPrice = totalBookings > 0 ? totalRevenue / totalBookings : 0;
+    const conversionRate = totalUsers > 0 ? (totalBookings / totalUsers) * 100 : 0;
+    
+    // Calculate growth rate (compare with previous period)
+    const prevStartDate = new Date(startDate.getTime() - daysBack * 24 * 60 * 60 * 1000);
+    const prevPeriodRevenue = await bookingsCollection.aggregate([
+      { $match: { createdAt: { $gte: prevStartDate, $lt: startDate } } },
+      { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]).toArray();
+    
+    const prevRevenue = prevPeriodRevenue[0]?.total || 0;
+    const growthRate = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : 0;
+    
     const analytics = {
       eventsByCategory,
       bookingsOverTime,
-      topEvents: [
-        { name: 'Tech Conference 2024', bookings: 150, revenue: 15000 },
-        { name: 'Music Festival', bookings: 230, revenue: 23000 },
-        { name: 'Art Exhibition', bookings: 80, revenue: 4000 }
-      ],
-      revenueMetrics: {
-        totalRevenue: bookingsOverTime.reduce((sum, day) => sum + (day.revenue || 0), 0),
-        averageTicketPrice: 75,
-        conversionRate: 8.5
+      userGrowthData,
+      topEvents,
+      overview: {
+        totalRevenue,
+        totalEvents,
+        totalUsers,
+        avgTicketPrice: Number(avgTicketPrice.toFixed(2)),
+        conversionRate: Number(conversionRate.toFixed(1)),
+        growthRate: Number(growthRate.toFixed(1))
+      },
+      period,
+      dateRange: {
+        start: startDate,
+        end: new Date()
       }
     };
     
