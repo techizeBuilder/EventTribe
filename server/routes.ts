@@ -1,10 +1,14 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { mongoStorage } from "./mongodb-storage.js";
 import { AuthService, authenticateToken, requireRole } from "./auth.js";
 import { enhancedAuthService } from "./authServiceEnhanced.js";
+import { payoutService } from "./services/payoutService.js";
+import { stripeConnectService } from "./stripeConnect.js";
 import Stripe from "stripe";
 import dotenv from "dotenv";
+import passport from "passport";
 dotenv.config();
 let stripe = null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -12,7 +16,7 @@ const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 if (stripeSecretKey && stripeSecretKey.startsWith("sk_")) {
   try {
     stripe = new Stripe(stripeSecretKey, {
-      apiVersion: "2025-06-30.basil",
+      apiVersion: "2025-08-27.basil",
     });
     console.log("[STARTUP] Stripe configured successfully");
   } catch (error) {
@@ -22,7 +26,7 @@ if (stripeSecretKey && stripeSecretKey.startsWith("sk_")) {
   console.warn("[STARTUP] Stripe not configured - using fallback key");
   // Use a fallback test key for development
   stripe = new Stripe(stripeSecretKey || 'sk_test_fallback', {
-    apiVersion: "2025-06-30.basil",
+    apiVersion: "2025-08-27.basil",
   });
 }
 
@@ -33,9 +37,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize Auth Service
   const authService = new AuthService();
   await authService.connect();
-  
+
   // Initialize Enhanced Auth Service
   await enhancedAuthService.connect();
+
+  // Setup passport middleware
+  app.use(passport.initialize());
 
   // Authentication Routes
   app.post("/api/auth/register", async (req, res) => {
@@ -66,6 +73,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Google OAuth Routes
+  app.get("/api/auth/google", passport.authenticate('google', {
+    scope: ['profile', 'email']
+  }));
+
+  app.get("/api/auth/google/callback",
+    passport.authenticate('google', {
+      session: false,
+      failureRedirect: '/login?error=google_auth_failed'
+    }),
+    async (req: any, res) => {
+      try {
+        // Generate JWT tokens for the authenticated user
+        const { accessToken, refreshToken } = enhancedAuthService.generateTokens(req.user._id, req.user.role);
+
+        // Store refresh token
+        await enhancedAuthService.storeRefreshToken(req.user._id, refreshToken);
+
+        // Redirect to frontend with tokens in URL (will be handled by frontend)
+        const redirectUrl = `/?token=${accessToken}&refresh=${refreshToken}&user=${encodeURIComponent(JSON.stringify({
+          id: req.user._id,
+          email: req.user.email,
+          firstName: req.user.firstName,
+          lastName: req.user.lastName,
+          role: req.user.role,
+          profileImageUrl: req.user.profileImageUrl
+        }))}`;
+
+        res.redirect(redirectUrl);
+      } catch (error) {
+        console.error('Google OAuth callback error:', error);
+        res.redirect('/login?error=oauth_callback_failed');
+      }
+    }
+  );
+
   app.get("/api/auth/profile", authenticateToken, async (req, res) => {
     try {
       res.json({
@@ -80,8 +123,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/auth/profile", authenticateToken, async (req, res) => {
     try {
-      await authService.updateUser(req.user._id, req.body);
-      const updatedUser = await authService.getUserById(req.user._id);
+      await authService.updateUser((req.user as any).id || (req.user as any)._id, req.body);
+      const updatedUser = await authService.getUserById((req.user as any).id || (req.user as any)._id);
       res.json({
         message: "Profile updated successfully",
         user: updatedUser,
@@ -145,7 +188,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Stripe payment routes
+  // Stripe Connect payment routes
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
       if (!stripe) {
@@ -162,13 +205,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid amount" });
       }
 
+      // Get event and organizer's connected account
+      await mongoStorage.connect();
+      const { ObjectId } = await import("mongodb");
+      const eventsCollection = mongoStorage.db.collection("events");
+      const event = await eventsCollection.findOne({ _id: new ObjectId(eventId) });
+
+      if (!event) {
+        return res.status(404).json({ error: "Event not found" });
+      }
+
+      // Get organizer's Stripe connected account
+      const organizersCollection = mongoStorage.db.collection("users");
+      const organizer = await organizersCollection.findOne({ _id: new ObjectId(event.organizerId) });
+
+      if (!organizer?.stripeConnectedAccountId) {
+        return res.status(400).json({
+          error: "Organizer not set up for payments",
+          message: "Organizer needs to complete Stripe onboarding"
+        });
+      }
+
+      // Calculate platform fee (20%)
+      const platformFeeAmount = Math.round(amount * 0.20 * 100); // 20% in cents
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: Math.round(amount * 100), // Convert to cents
         currency: "usd",
+        application_fee_amount: platformFeeAmount,
+        transfer_data: {
+          destination: organizer.stripeConnectedAccountId,
+        },
         metadata: {
           eventId: eventId || "",
           eventTitle: eventTitle || "",
           ticketDetails: JSON.stringify(ticketDetails || {}),
+          organizerId: event.organizerId,
+          platformFee: (platformFeeAmount / 100).toString(),
         },
       });
 
@@ -225,6 +298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // ==================== REMOVED - BANK ACCOUNT ROUTES MOVED BELOW ====================
 
   // ==================== PUBLIC EVENT ROUTES ====================
 
@@ -358,7 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (!event) {
-        event = await eventsCollection.findOne({ _id: id });
+        event = await eventsCollection.findOne({ _id: id } as any);
       }
 
       if (!event) {
@@ -403,7 +478,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Multi-event payment intent for cart
+  // Multi-event payment intent for cart with Stripe Connect
   app.post("/api/create-multi-event-payment-intent", async (req, res) => {
     try {
       if (!stripe) {
@@ -426,78 +501,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid items" });
       }
 
-      // Connect to MongoDB to validate events
+      // For multi-event payments, check if all items are from same organizer
       await mongoStorage.connect();
       const { ObjectId } = await import("mongodb");
+      const eventsCollection = mongoStorage.db.collection("events");
+      const organizersCollection = mongoStorage.db.collection("users");
 
-      // Validate all events exist (but don't fail if some don't exist for cart flexibility)
-      for (const item of items) {
-        if (item.eventId) {
-          try {
-            let event = null;
+      // Get event details and check organizers
+      const eventIds = items.map(item => new ObjectId(item.eventId));
+      const events = await eventsCollection.find({ _id: { $in: eventIds } }).toArray();
 
-            // Try different query formats
-            if (ObjectId.isValid(item.eventId)) {
-              event = await mongoStorage.db.collection("events").findOne({
-                _id: new ObjectId(item.eventId),
-              });
-            }
+      const organizerIds = events.map(event => event.organizerId.toString());
+      const uniqueOrganizers = Array.from(new Set(organizerIds));
 
-            if (!event) {
-              event = await mongoStorage.db.collection("events").findOne({
-                _id: item.eventId,
-              });
-            }
+      if (uniqueOrganizers.length === 1) {
+        // Single organizer - use destination charges
+        const organizer = await organizersCollection.findOne({ _id: new ObjectId(uniqueOrganizers[0]) });
 
-            if (!event) {
-              event = await mongoStorage.db.collection("events").findOne({
-                id: item.eventId,
-              });
-            }
-
-            console.log(
-              `Event validation for ${item.eventId}:`,
-              event ? "Found" : "Not found",
-            );
-
-            // Don't fail the payment, just log if event not found
-            if (!event) {
-              console.warn(
-                `Event ${item.eventId} not found in database, proceeding with payment`,
-              );
-            }
-          } catch (eventError) {
-            console.warn(`Error validating event ${item.eventId}:`, eventError);
-          }
+        if (!organizer?.stripeConnectedAccountId) {
+          return res.status(400).json({
+            error: "Organizer not set up for payments",
+            message: "Organizer needs to complete Stripe onboarding"
+          });
         }
+
+        // Calculate platform fee (20%)
+        const platformFeeAmount = Math.round(amount * 0.20 * 100); // 20% in cents
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(amount * 100), // Convert to cents
+          currency: "usd",
+          application_fee_amount: platformFeeAmount,
+          transfer_data: {
+            destination: organizer.stripeConnectedAccountId,
+          },
+          metadata: {
+            userEmail: userEmail || "",
+            userName: userName || "",
+            itemCount: items.length.toString(),
+            platformFee: (platformFeeAmount / 100).toString(),
+            organizerId: uniqueOrganizers[0],
+            type: "multi_event_single_organizer",
+            items: JSON.stringify(
+              items.map((item) => ({
+                eventId: item.eventId,
+                eventTitle: item.eventTitle,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total,
+              })),
+            ),
+          },
+        });
+
+        console.log("Multi-event single organizer payment intent created:", paymentIntent.id);
+
+        res.json({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+        });
+      } else {
+        // Multiple organizers - use regular payment intent, handle transfers in post-processing
+        const platformFeeAmount = Math.round(amount * 0.20 * 100); // 20% in cents
+
+        const paymentIntent = await stripe.paymentIntents.create({
+          amount: Math.round(amount * 100), // Convert to cents
+          currency: "usd",
+          metadata: {
+            userEmail: userEmail || "",
+            userName: userName || "",
+            itemCount: items.length.toString(),
+            platformFee: (platformFeeAmount / 100).toString(),
+            type: "multi_event_multi_organizer",
+            items: JSON.stringify(
+              items.map((item) => ({
+                eventId: item.eventId,
+                eventTitle: item.eventTitle,
+                name: item.name,
+                price: item.price,
+                quantity: item.quantity,
+                total: item.total,
+              })),
+            ),
+          },
+        });
+
+        console.log("Multi-event multi-organizer payment intent created:", paymentIntent.id);
+
+        res.json({
+          clientSecret: paymentIntent.client_secret,
+          paymentIntentId: paymentIntent.id,
+        });
       }
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
-        currency: "usd",
-        metadata: {
-          userEmail: userEmail || "",
-          userName: userName || "",
-          itemCount: items.length.toString(),
-          items: JSON.stringify(
-            items.map((item) => ({
-              eventId: item.eventId,
-              eventTitle: item.eventTitle,
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity,
-              total: item.total,
-            })),
-          ),
-        },
-      });
-
-      console.log("Multi-event payment intent created:", paymentIntent.id);
-
-      res.json({
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id,
-      });
     } catch (error: any) {
       console.error("Error creating multi-event payment intent:", error);
       res.status(500).json({
@@ -563,6 +659,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const result = await bookingsCollection.insertOne(booking);
 
       console.log("Single booking saved:", result.insertedId);
+
+      // Get event and organization details for payout processing
+      const eventsCollection = mongoStorage.db.collection("events");
+      const event = await eventsCollection.findOne({ _id: new ObjectId(eventId) });
+
+      if (event) {
+        // Process payout split (80% immediate, 20% pending)
+        try {
+          await payoutService.processPayoutSplit({
+            bookingId: result.insertedId.toString(),
+            eventId: eventId,
+            organizationId: event.organizationId.toString(),
+            organizerId: event.organizerId.toString(),
+            totalAmount: totalAmount,
+            paymentIntentId: paymentIntentId,
+            ticketDetails: ticketDetails,
+            customerEmail: userEmail,
+            customerName: userName
+          });
+          console.log(`[Payout] Successfully processed revenue split for booking ${result.insertedId}`);
+        } catch (payoutError) {
+          console.error("[Payout] Error processing payout split:", payoutError);
+          // Don't fail the booking save, but log the error
+        }
+      }
 
       res.json({
         success: true,
@@ -631,6 +752,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const result = await bookingsCollection.insertOne(booking);
         savedBookings.push({ ...booking, _id: result.insertedId });
+
+        // Process payout split for each booking
+        const eventsCollection = mongoStorage.db.collection("events");
+        const event = await eventsCollection.findOne({ _id: new ObjectId(item.eventId) });
+
+        if (event) {
+          try {
+            await payoutService.processPayoutSplit({
+              bookingId: result.insertedId.toString(),
+              eventId: item.eventId,
+              organizationId: event.organizationId.toString(),
+              organizerId: event.organizerId.toString(),
+              totalAmount: item.total,
+              paymentIntentId: paymentIntentId,
+              ticketDetails: [{
+                type: item.name,
+                price: item.price,
+                quantity: item.quantity
+              }],
+              customerEmail: userEmail,
+              customerName: userName
+            });
+            console.log(`[Payout] Successfully processed revenue split for multi-event booking ${result.insertedId}`);
+          } catch (payoutError) {
+            console.error("[Payout] Error processing payout split for multi-event booking:", payoutError);
+          }
+        }
       }
 
       console.log(
@@ -648,6 +796,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: false,
         error: "Failed to save booking",
         message: error.message,
+      });
+    }
+  });
+
+  // ==================== STRIPE CONNECT ROUTES ====================
+
+  // Create Stripe Connect account for organizer
+  app.post("/api/stripe/create-connect-account", authenticateToken, async (req, res) => {
+
+    // console.log('Calling this one api-----------------');
+    // return false;
+    const { userId, email, firstName, lastName, businessName } = req.body;
+
+    // Create Stripe Connect account
+    const account = await stripeConnectService.createConnectedAccount({
+      organizerId: userId,
+      email,
+      firstName,
+      lastName,
+      businessName
+    });
+
+    // Save account ID to user record
+    await mongoStorage.connect();
+    const { ObjectId } = await import("mongodb");
+    const usersCollection = mongoStorage.db.collection("users");
+    await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      {
+        $set: {
+          stripeConnectedAccountId: account.id,
+          stripeAccountStatus: 'created',
+          updatedAt: new Date()
+        }
+      }
+    );
+
+    res.json({
+      success: true,
+      accountId: account.id,
+      message: "Connected account created successfully"
+    });
+
+  });
+
+  // Create onboarding link for organizer
+  app.post("/api/stripe/create-onboarding-link", authenticateToken, async (req, res) => {
+    try {
+      const { accountId } = req.body;
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+      const accountLink = await stripeConnectService.createOnboardingLink(
+        accountId,
+        `${baseUrl}/organizer/stripe/return`,
+        `${baseUrl}/organizer/stripe/refresh`
+      );
+
+      res.json({
+        success: true,
+        url: accountLink.url
+      });
+    } catch (error) {
+      console.error("Error creating onboarding link:", error);
+      res.status(500).json({
+        error: "Failed to create onboarding link",
+        message: error.message
+      });
+    }
+  });
+
+  // Get Stripe account status
+  app.get("/api/stripe/account-status/:accountId", authenticateToken, async (req, res) => {
+    try {
+      const { accountId } = req.params;
+
+      const status = await stripeConnectService.getAccountStatus(accountId);
+
+      res.json({
+        success: true,
+        status
+      });
+    } catch (error) {
+      console.error("Error getting account status:", error);
+      res.status(500).json({
+        error: "Failed to get account status",
+        message: error.message
+      });
+    }
+  });
+
+  // Get account balance and payout history
+  app.get("/api/stripe/account-finances/:accountId", authenticateToken, async (req, res) => {
+    try {
+      const { accountId } = req.params;
+
+      const [balance, transfers, payouts] = await Promise.all([
+        stripeConnectService.getAccountBalance(accountId),
+        stripeConnectService.listTransfers(accountId),
+        stripeConnectService.listPayouts(accountId)
+      ]);
+
+      res.json({
+        success: true,
+        balance,
+        transfers,
+        payouts
+      });
+    } catch (error) {
+      console.error("Error getting account finances:", error);
+      res.status(500).json({
+        error: "Failed to get account finances",
+        message: error.message
+      });
+    }
+  });
+
+  // Admin: Approve withdrawal and create payout
+  app.post("/api/admin/approve-withdrawal", authenticateToken, requireRole(["admin"]), async (req, res) => {
+    try {
+      const { requestId, adminRemarks } = req.body;
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import("mongodb");
+      const withdrawalRequestsCollection = mongoStorage.db.collection("withdrawal_requests");
+      const usersCollection = mongoStorage.db.collection("users");
+
+      // Get withdrawal request
+      const request = await withdrawalRequestsCollection.findOne({ _id: new ObjectId(requestId) });
+      if (!request) {
+        return res.status(404).json({ error: "Withdrawal request not found" });
+      }
+
+      // Get organizer's Stripe account
+      const organizer = await usersCollection.findOne({ _id: request.organizerId });
+      if (!organizer?.stripeConnectedAccountId) {
+        return res.status(400).json({ error: "Organizer doesn't have connected Stripe account" });
+      }
+
+      // Create Stripe payout
+      const payout = await stripeConnectService.createPayout(
+        organizer.stripeConnectedAccountId,
+        request.requestedAmount,
+        requestId
+      );
+
+      // Update withdrawal request
+      await withdrawalRequestsCollection.updateOne(
+        { _id: new ObjectId(requestId) },
+        {
+          $set: {
+            status: 'approved',
+            stripePayout: {
+              id: payout.id,
+              amount: payout.amount / 100,
+              status: payout.status
+            },
+            adminRemarks,
+            processedAt: new Date(),
+            updatedAt: new Date()
+          }
+        }
+      );
+
+      // Update organization earnings
+      const earningsCollection = mongoStorage.db.collection("organization_earnings");
+      await earningsCollection.updateOne(
+        { organizationId: request.organizationId },
+        {
+          $inc: {
+            pendingEarnings: -request.requestedAmount,
+            requestedEarnings: -request.requestedAmount,
+            paidEarnings: request.requestedAmount
+          },
+          $set: { updatedAt: new Date() }
+        }
+      );
+
+      res.json({
+        success: true,
+        payout,
+        message: "Withdrawal approved and payout created"
+      });
+    } catch (error) {
+      console.error("Error approving withdrawal:", error);
+      res.status(500).json({
+        error: "Failed to approve withdrawal",
+        message: error.message
       });
     }
   });
@@ -1110,104 +1445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // REMOVED DUPLICATE - Using organizerRoutes.js implementation instead
   // This was causing route conflicts and authentication issues
 
-  // GET /api/organizer/earnings - Get organizer earnings data
-  app.get(
-    "/api/organizer/earnings",
-    authenticateToken,
-    requireRole(["organizer"]),
-    async (req, res) => {
-      try {
-        const organizerId = req.user._id || req.user.id;
-
-        await mongoStorage.connect();
-        const { ObjectId } = await import("mongodb");
-
-        // Get organizer's events
-        const eventsCollection = mongoStorage.db.collection("events");
-        const organizerEvents = await eventsCollection
-          .find({ organizerId })
-          .toArray();
-
-        // Get bookings for these events
-        const bookingsCollection = mongoStorage.db.collection("bookings");
-        let allBookings = [];
-
-        if (organizerEvents.length > 0) {
-          const eventIds = organizerEvents.map((event) => event._id);
-          allBookings = await bookingsCollection
-            .find({
-              eventId: { $in: eventIds },
-            })
-            .toArray();
-        }
-
-        // Calculate earnings data
-        const totalRevenue = allBookings.reduce(
-          (sum, booking) => sum + (booking.totalAmount || 0),
-          0,
-        );
-        const totalTicketsSold = allBookings.reduce((sum, booking) => {
-          if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
-            return (
-              sum +
-              booking.ticketDetails.reduce(
-                (total, ticket) => total + (ticket.quantity || 0),
-                0,
-              )
-            );
-          }
-          return sum + 1;
-        }, 0);
-        const totalBookings = allBookings.length;
-
-        // Event-wise earnings
-        const eventEarnings = organizerEvents.map((event) => {
-          const eventBookings = allBookings.filter(
-            (booking) => booking.eventId.toString() === event._id.toString(),
-          );
-
-          const revenue = eventBookings.reduce(
-            (sum, booking) => sum + (booking.totalAmount || 0),
-            0,
-          );
-          const ticketsSold = eventBookings.reduce((sum, booking) => {
-            if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
-              return (
-                sum +
-                booking.ticketDetails.reduce(
-                  (total, ticket) => total + (ticket.quantity || 0),
-                  0,
-                )
-              );
-            }
-            return sum + 1;
-          }, 0);
-
-          return {
-            _id: event._id,
-            title: event.title,
-            revenue,
-            ticketsSold,
-            bookingsCount: eventBookings.length,
-            createdAt: event.createdAt,
-          };
-        });
-
-        res.json({
-          totalRevenue,
-          totalTicketsSold,
-          totalBookings,
-          totalEvents: organizerEvents.length,
-          events: eventEarnings,
-        });
-      } catch (error) {
-        console.error("Error fetching earnings:", error);
-        res
-          .status(500)
-          .json({ message: "Failed to fetch earnings", error: error.message });
-      }
-    },
-  );
+  // The /api/organizer/earnings endpoint is handled by organizerRoutes.js with proper authentication
 
   // DISABLED - Use organizerRoutes.js instead
   // GET /api/organizer/events - Get organizer's events
@@ -1344,8 +1582,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         ];
 
-        await eventsCollection.insertMany(sampleEvents);
-        events = sampleEvents;
+        const insertResult = await eventsCollection.insertMany(sampleEvents);
+        events = await eventsCollection.find({}).sort({ createdAt: -1 }).toArray();
       }
 
       res.json(events);
@@ -1470,8 +1708,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           ticketType: {
             name: ticketType.name,
             price: parseFloat(
-              ticketType.coverTicket && ticketType.creditPrice !== null && ticketType.creditPrice !== undefined 
-                ? ticketType.creditPrice 
+              ticketType.coverTicket && ticketType.creditPrice !== null && ticketType.creditPrice !== undefined
+                ? ticketType.creditPrice
                 : ticketType.price
             ) || 25.0,
             description: ticketType.description || "Standard event ticket",
@@ -1710,6 +1948,195 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .json({ error: "Failed to fetch cart", items: [], count: 0 });
     }
   });
+
+  // ==================== PAYOUT SYSTEM ROUTES ====================
+
+  // Get organization earnings summary
+  app.get("/api/organization/earnings", authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      console.log('[Earnings] Route accessed, user:', req.user);
+      const userId = (req as any).user.id || (req as any).user._id;
+      console.log('[Earnings] User ID:', userId);
+
+      // Get organization by user ID or use user ID directly as organizer ID
+      const organizationsCollection = mongoStorage.db.collection("organizations");
+      let organization = await organizationsCollection.findOne({ ownerId: new (await import("mongodb")).ObjectId(userId) });
+
+      // If no organization found, treat the user as the organizer directly
+      if (!organization) {
+        console.log(`[Earnings] No organization found for user ${userId}, using user ID as organizer ID`);
+        const earnings = await payoutService.getOrganizationEarnings(userId);
+        return res.json({ success: true, earnings });
+      }
+
+      const earnings = await payoutService.getOrganizationEarnings(organization._id);
+      res.json({ success: true, earnings });
+    } catch (error: any) {
+      console.error("Error getting organization earnings:", error);
+      res.status(500).json({ error: "Failed to get earnings", message: error.message });
+    }
+  });
+
+  // Create withdrawal request
+  app.post("/api/organization/withdrawal-request", authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const { requestedAmount, requestReason, bankDetails } = req.body;
+
+      // Get organization by user ID
+      const organizationsCollection = mongoStorage.db.collection("organizations");
+      const organization = await organizationsCollection.findOne({ ownerId: new (await import("mongodb")).ObjectId(userId) });
+
+      if (!organization) {
+        return res.status(404).json({ error: "Organization not found" });
+      }
+
+      const result = await payoutService.createWithdrawalRequest({
+        organizationId: organization._id,
+        organizerId: userId,
+        requestedAmount,
+        requestReason,
+        bankDetails
+      });
+
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error creating withdrawal request:", error);
+      res.status(500).json({ error: "Failed to create withdrawal request", message: error.message });
+    }
+  });
+
+  // Get organization withdrawal requests
+  app.get("/api/organization/withdrawal-requests", authenticateToken, requireRole(['organizer']), async (req, res) => {
+    try {
+      const userId = (req as any).user.id || (req as any).user._id;
+      const { status } = req.query;
+
+      // Get organization by user ID or use user ID directly as organizer ID
+      const organizationsCollection = mongoStorage.db.collection("organizations");
+      let organization = await organizationsCollection.findOne({ ownerId: new (await import("mongodb")).ObjectId(userId) });
+
+      let organizationId = organization ? organization._id : userId;
+
+      const requests = await payoutService.getOrganizationWithdrawals(organizationId, status as string);
+      res.json({ success: true, requests });
+    } catch (error: any) {
+      console.error("Error getting withdrawal requests:", error);
+      res.status(500).json({ error: "Failed to get withdrawal requests", message: error.message });
+    }
+  });
+
+  // ==================== ADMIN PAYOUT ROUTES ====================
+
+  // Get admin payout dashboard stats
+  app.get("/api/admin/payout/stats", authenticateToken, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const stats = await payoutService.getAdminPayoutStats();
+      res.json({ success: true, stats });
+    } catch (error: any) {
+      console.error("Error getting admin payout stats:", error);
+      res.status(500).json({ error: "Failed to get payout stats", message: error.message });
+    }
+  });
+
+  // Get all withdrawal requests for admin
+  app.get("/api/admin/payout/withdrawal-requests", authenticateToken, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { status, page = 1, limit = 20 } = req.query;
+      const result = await payoutService.getAllWithdrawalRequests(
+        status as string,
+        parseInt(page as string),
+        parseInt(limit as string)
+      );
+      res.json({ success: true, ...result });
+    } catch (error: any) {
+      console.error("Error getting admin withdrawal requests:", error);
+      res.status(500).json({ error: "Failed to get withdrawal requests", message: error.message });
+    }
+  });
+
+  // Approve or reject withdrawal request
+  app.patch("/api/admin/payout/withdrawal-requests/:requestId", authenticateToken, requireRole(["super_admin", "admin"]), async (req, res) => {
+    try {
+      const { requestId } = req.params;
+      const { action, remarks } = req.body;
+      const adminId = (req as any).user.id;
+
+      if (!["approve", "reject"].includes(action)) {
+        return res.status(400).json({ error: "Invalid action. Must be 'approve' or 'reject'" });
+      }
+
+      const result = await payoutService.reviewWithdrawalRequest(requestId, action, adminId, remarks);
+      res.json(result);
+    } catch (error: any) {
+      console.error("Error reviewing withdrawal request:", error);
+      res.status(500).json({ error: "Failed to review withdrawal request", message: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
+
+  // Add WebSocket server for real-time messaging
+  const wss = new WebSocketServer({
+    server: httpServer,
+    path: '/ws',
+    verifyClient: (info) => {
+      // Basic WebSocket connection verification
+      return true;
+    }
+  });
+
+  // Store WebSocket connections
+  const connections = new Map();
+
+  wss.on('connection', (ws, req) => {
+    console.log('WebSocket connected');
+
+    ws.on('message', (data) => {
+      try {
+        const message = JSON.parse(data.toString());
+
+        if (message.type === 'subscribe') {
+          // Store connection with user info for targeting messages
+          connections.set(ws, {
+            userEmail: message.userEmail,
+            userType: message.userType, // 'admin' or 'organizer'
+            channels: message.channels || []
+          });
+          console.log(`WebSocket subscribed: ${message.userType} - ${message.userEmail}`);
+        }
+      } catch (error) {
+        console.error('WebSocket message error:', error);
+      }
+    });
+
+    ws.on('close', () => {
+      connections.delete(ws);
+      console.log('WebSocket disconnected');
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      connections.delete(ws);
+    });
+  });
+
+  // Global function to broadcast messages
+  global.broadcastMessage = (data) => {
+    const message = JSON.stringify(data);
+    connections.forEach((connectionInfo, ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
+        // Send to relevant users based on message type
+        if (data.type === 'new-message') {
+          if (data.senderType === 'admin' && connectionInfo.userType === 'organizer' && connectionInfo.userEmail === data.organizerEmail) {
+            ws.send(message);
+          } else if (data.senderType === 'organizer' && connectionInfo.userType === 'admin') {
+            ws.send(message);
+          }
+        }
+      }
+    });
+  };
+
   return httpServer;
 }

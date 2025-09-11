@@ -1,0 +1,623 @@
+{
+    "info": {
+        "name": "EventTribe Stripe Payment Flow",
+        "description": "API collection for testing the EventTribe payment flow with Stripe, including authentication",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "item": [
+        {
+            "name": "Authentication",
+            "item": [
+                {
+                    "name": "Organizer Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"organizer@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"organizer\"\n}"
+                        },
+                        "description": "Login as an organizer. The response includes a token that should be used in the Authorization header for all organizer API calls."
+                    },
+                    "response": [
+                        {
+                            "name": "Successful Response",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"email\": \"organizer@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"organizer\"\n}"
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": "{\n  \"user\": {\n    \"_id\": \"65f0d12e7b94a037844cea3f\",\n    \"firstName\": \"Test\",\n    \"lastName\": \"Organizer\",\n    \"email\": \"organizer@example.com\",\n    \"role\": \"organizer\"\n  },\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Admin Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
+                        },
+                        "description": "Login as an admin. The response includes a token that should be used in the Authorization header for all admin API calls."
+                    },
+                    "response": [
+                        {
+                            "name": "Successful Response",
+                            "originalRequest": {
+                                "method": "POST",
+                                "header": [],
+                                "body": {
+                                    "mode": "raw",
+                                    "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"admin123\",\n  \"role\": \"admin\"\n}"
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "header": [
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                }
+                            ],
+                            "body": "{\n  \"user\": {\n    \"_id\": \"65f0d12e7b94a037844cea40\",\n    \"firstName\": \"Admin\",\n    \"lastName\": \"User\",\n    \"email\": \"admin@example.com\",\n    \"role\": \"admin\"\n  },\n  \"token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\"\n}"
+                        }
+                    ]
+                },
+                {
+                    "name": "Register Organizer",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/register",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "register"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Organizer\",\n  \"email\": \"new.organizer@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"organizer\",\n  \"organizationName\": \"New Events Co\",\n  \"phone\": \"+1234567890\",\n  \"currency\": \"USD\",\n  \"acceptTerms\": true\n}"
+                        },
+                        "description": "Register a new organizer account."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Organizer Onboarding",
+            "item": [
+                {
+                    "name": "1. Create Stripe Connected Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/create-connect-account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "stripe",
+                                "create-connect-account"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"userId\": \"{{organizerId}}\",\n  \"email\": \"organizer@example.com\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Organizer\",\n  \"businessName\": \"Test Events Co\"\n}"
+                        },
+                        "description": "Create a Stripe Connect account for the organizer. This is the first step in the onboarding process."
+                    }
+                },
+                {
+                    "name": "2. Create Onboarding Link",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/create-onboarding-link",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "stripe",
+                                "create-onboarding-link"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"accountId\": \"{{stripeAccountId}}\"\n}"
+                        },
+                        "description": "Create an onboarding link that the organizer can use to complete their Stripe Connect account setup."
+                    }
+                },
+                {
+                    "name": "3. Add Bank Account to Connected Account",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/add-bank-account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "stripe",
+                                "add-bank-account"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"accountId\": \"{{stripeAccountId}}\",\n  \"bankAccount\": {\n    \"country\": \"US\",\n    \"currency\": \"usd\",\n    \"account_holder_name\": \"Test Organizer\",\n    \"account_holder_type\": \"individual\",\n    \"routing_number\": \"110000000\",\n    \"account_number\": \"000123456789\"\n  }\n}"
+                        },
+                        "description": "Add a bank account to the organizer's Stripe Connect account. This is needed for payouts."
+                    }
+                },
+                {
+                    "name": "4. Verify Microdeposits",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/stripe/verify-bank-account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "stripe",
+                                "verify-bank-account"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"accountId\": \"{{stripeAccountId}}\",\n  \"bankAccountId\": \"{{stripeBankAccountId}}\",\n  \"amounts\": [32, 45]\n}"
+                        },
+                        "description": "Verify the bank account using microdeposits. Stripe will make two small deposits to the bank account, and the organizer needs to enter these amounts to verify the account."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Payment Flow",
+            "item": [
+                {
+                    "name": "1. Create Payment Intent (Buy Ticket)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{attendeeToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/create-payment-intent",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "create-payment-intent"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"amount\": 100,\n  \"eventId\": \"{{eventId}}\",\n  \"eventTitle\": \"Test Event\",\n  \"ticketDetails\": {\n    \"type\": \"general\",\n    \"quantity\": 1\n  }\n}"
+                        },
+                        "description": "Create a payment intent for a ticket purchase. The amount is in dollars. The response includes a client secret that can be used to confirm the payment on the frontend."
+                    }
+                },
+                {
+                    "name": "2. Save Booking",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{attendeeToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/save-booking",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "save-booking"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"paymentIntentId\": \"{{paymentIntentId}}\",\n  \"eventId\": \"{{eventId}}\",\n  \"eventTitle\": \"Test Event\",\n  \"ticketDetails\": {\n    \"type\": \"general\",\n    \"quantity\": 1\n  },\n  \"userEmail\": \"attendee@example.com\",\n  \"userName\": \"Test Attendee\"\n}"
+                        },
+                        "description": "Save the booking after a successful payment. This creates a record of the ticket purchase in the database."
+                    }
+                },
+                {
+                    "name": "3. Webhook Simulation (Payment Succeeded)",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Stripe-Signature",
+                                "value": "t=1623168000,v1=mock_signature"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/webhooks/stripe",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "webhooks",
+                                "stripe"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"id\": \"evt_test_webhook\",\n  \"object\": \"event\",\n  \"type\": \"payment_intent.succeeded\",\n  \"data\": {\n    \"object\": {\n      \"id\": \"{{paymentIntentId}}\",\n      \"object\": \"payment_intent\",\n      \"amount\": 10000,\n      \"status\": \"succeeded\",\n      \"metadata\": {\n        \"eventId\": \"{{eventId}}\",\n        \"organizerId\": \"{{organizerId}}\",\n        \"platformFee\": \"20\"\n      }\n    }\n  }\n}"
+                        },
+                        "description": "Simulate a payment_intent.succeeded webhook event from Stripe. This triggers the automatic 80% transfer to the organizer and records the 20% commission for later approval."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Organizer Payout",
+            "item": [
+                {
+                    "name": "1. Get Organizer Commission Balance",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/organizer/commission-balance",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizer",
+                                "commission-balance"
+                            ]
+                        },
+                        "description": "Get the organizer's pending commission balance (20% held by platform)."
+                    }
+                },
+                {
+                    "name": "2. Request Commission Payout",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/organizer/request-commission-payout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizer",
+                                "request-commission-payout"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"eventIds\": [\"{{eventId}}\"],\n  \"reason\": \"Monthly payout request\"\n}"
+                        },
+                        "description": "Request a payout for the 20% commission held by the platform. The organizer can request payouts for specific events."
+                    }
+                },
+                {
+                    "name": "3. Get Payout History",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{organizerToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/organizer/payout-history",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "organizer",
+                                "payout-history"
+                            ]
+                        },
+                        "description": "Get the organizer's payout history, including both immediate transfers (80%) and commission payouts (20%)."
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Admin Payout Management",
+            "item": [
+                {
+                    "name": "1. List Pending Payout Requests",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/payout-requests",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "payout-requests"
+                            ]
+                        },
+                        "description": "Get all pending payout requests from organizers. Admin can review these requests and approve or reject them."
+                    }
+                },
+                {
+                    "name": "2. Approve Payout Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/approve-payout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "approve-payout"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"payoutRequestId\": \"{{payoutRequestId}}\",\n  \"organizerId\": \"{{organizerId}}\"\n}"
+                        },
+                        "description": "Approve a payout request. This triggers a transfer of the 20% commission from the platform to the organizer's connected account."
+                    }
+                },
+                {
+                    "name": "3. Reject Payout Request",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{adminToken}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/reject-payout",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "reject-payout"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"payoutRequestId\": \"{{payoutRequestId}}\",\n  \"reason\": \"Insufficient information provided\"\n}"
+                        },
+                        "description": "Reject a payout request. The organizer will be notified and can submit a new request."
+                    }
+                }
+            ]
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{token}}",
+                "type": "string"
+            }
+        ]
+    },
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        },
+        {
+            "key": "organizerToken",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the token received from the Organizer Login API"
+        },
+        {
+            "key": "adminToken",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the token received from the Admin Login API"
+        },
+        {
+            "key": "attendeeToken",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the token received from a regular user login"
+        },
+        {
+            "key": "organizerId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the organizer user ID"
+        },
+        {
+            "key": "eventId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to a valid event ID"
+        },
+        {
+            "key": "stripeAccountId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the Stripe Connect account ID"
+        },
+        {
+            "key": "stripeBankAccountId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the Stripe bank account ID"
+        },
+        {
+            "key": "paymentIntentId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the payment intent ID from the create payment intent response"
+        },
+        {
+            "key": "payoutRequestId",
+            "value": "",
+            "type": "string",
+            "description": "Set this to the payout request ID from the request commission payout response"
+        }
+    ]
+}

@@ -17,6 +17,7 @@ import {
   FiUpload,
   FiChevronUp,
   FiMenu,
+  FiMessageCircle,
 } from "react-icons/fi";
 import { logoutUser } from "../store/slices/authSlice";
 import toast from "react-hot-toast";
@@ -90,7 +91,6 @@ const navItems = [
       {
         to: "/organizer/support-center",
         label: "Support Center",
-        badge: "NEW",
       },
     ],
   },
@@ -151,6 +151,15 @@ const OrganizerDashboard = () => {
     toast.success("Logged out successfully!");
     navigate("/login");
   };
+
+  // Reset modal states when navigating to specific routes
+  useEffect(() => {
+    if (location.pathname === '/organizer/createEvent') {
+      setCreateOrgModalOpen(false);
+      setOrgSelectorOpen(false);
+      setUserProfileOpen(false);
+    }
+  }, [location.pathname]);
 
   // Handle clicking outside dropdowns to close them
   useEffect(() => {

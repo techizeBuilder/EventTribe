@@ -36,7 +36,7 @@ export default function AdminOverview() {
       
       // Check if token exists
       if (!token) {
-        toast.error("Admin authentication required");
+        // Don't show duplicate toast - let adminAuth.js handle it
         return;
       }
       

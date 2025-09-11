@@ -27,9 +27,9 @@ import PaymentDetails from "./pages/PaymentDetails";
 import MyReservations from "./pages/MyReservations";
 import AttendeeProfile from "./pages/AttendeeProfile";
 import AboutPage from "./pages/AboutPage";
-import Payouts from "./pages/Payouts";
+import PayoutDashboard from "./components/organizer/PayoutDashboard";
 import Disputes from "./pages/Disputes";
-import SupportCenter from "./pages/organizer/Support";
+import SupportCenter from "./pages/organizer/SupportCenter";
 import EditProfile from "./pages/EditProfile";
 import Notifications from "./pages/Notifications";
 import NotificationsPage from "./pages/NotificationsPage";
@@ -44,6 +44,8 @@ import AdminUsersManagement from "./components/admin/AdminUsersManagement";
 import AdminEventsManagement from "./components/admin/AdminEventsManagement";
 import AdminAnalytics from "./components/admin/AdminAnalytics";
 import AdminSettings from "./components/admin/AdminSettings";
+import AdminPayoutManagement from "./components/admin/AdminPayoutManagement";
+import AdminSupport from "./components/admin/AdminSupport";
 import DuplicateEvent from "./pages/DuplicateEvent";
 import OrganizationEarnings from "./pages/organizer/OrganizationEarnings";
 import Events from "./pages/organizer/Events";
@@ -120,7 +122,7 @@ function AppContent() {
             <Route path="createEvent" element={<CreateEvent />} />
             <Route path="editEvent" element={<EditEvent />} />
             <Route path="duplicate-event" element={<DuplicateEvent />} />
-            <Route path="payouts" element={<Payouts />} />
+            <Route path="payouts" element={<PayoutDashboard />} />
             <Route path="disputes" element={<Disputes />} />
 
             <Route path="analytics" element={<Analytics />} />
@@ -131,6 +133,8 @@ function AppContent() {
             <Route index element={<AdminOverview />} />
             <Route path="users" element={<AdminUsersManagement />} />
             <Route path="events" element={<AdminEventsManagement />} />
+            <Route path="payouts" element={<AdminPayoutManagement />} />
+            <Route path="support" element={<AdminSupport />} />
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="earnings/:userId" element={<OrganizationEarnings />} />

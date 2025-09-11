@@ -208,6 +208,13 @@ export const useCart = () => {
       return;
     }
 
+    // Check if item exists in current cart state before attempting removal
+    const itemExists = cartItems.find(item => item._id === itemId);
+    if (!itemExists) {
+      console.log('[Cart] Item already removed from local state, skipping API call');
+      return;
+    }
+
     try {
       // Store original state for rollback
       const originalCartItems = [...cartItems];
@@ -259,9 +266,18 @@ export const useCart = () => {
       } else {
         // Revert optimistic update on failure
         console.error('[Cart] Failed to remove item:', data);
-        setCartItems(originalCartItems);
-        setCartCount(originalCartCount);
-        toast.error(data.error || 'Failed to remove item from cart');
+        
+        // If item was already removed (not found), don't show error and don't revert
+        if (data.error === 'Item not found in cart') {
+          console.log('[Cart] Item was already removed, keeping optimistic update');
+          // Force refresh to ensure UI is in sync with backend
+          await Promise.all([fetchCart(), fetchCartCount()]);
+        } else {
+          // Only revert for actual errors
+          setCartItems(originalCartItems);
+          setCartCount(originalCartCount);
+          toast.error(data.error || 'Failed to remove item from cart');
+        }
       }
     } catch (error) {
       console.error('[Cart] Error removing from cart:', error);
@@ -330,6 +346,9 @@ export const useCart = () => {
       setCartItems([]);
       setCartCount(0);
 
+      // Clear global cache immediately
+      globalCartData = { items: [], count: 0, lastFetch: 0 };
+
       const response = await fetch(`/api/cart/clear/${encodeURIComponent(user.email)}`, {
         method: 'DELETE'
       });
@@ -337,12 +356,16 @@ export const useCart = () => {
       const data = await response.json();
       
       if (response.ok) {
-        // Check if enough time has passed since last toast
-        const now = Date.now();
-        if (now - lastToastTime > 2000) {
-          toast.success('Cart cleared');
-          setLastToastTime(now);
-        }
+        console.log('Cart cleared successfully');
+        
+        // Force refresh to ensure UI is synced
+        await fetchCart();
+        await fetchCartCount();
+        
+        // Dispatch event to notify other components
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('cartUpdated'));
+        }, 100);
       } else {
         // Revert optimistic update on failure
         await fetchCart();

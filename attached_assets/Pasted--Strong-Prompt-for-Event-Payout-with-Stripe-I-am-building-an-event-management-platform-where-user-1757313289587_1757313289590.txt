@@ -1,0 +1,67 @@
+🔥 Strong Prompt for Event Payout with Stripe
+
+I am building an event management platform where users buy tickets, payments go through Stripe, and organizers get paid after platform fees are deducted. I want the following functionality using Stripe Connect APIs:
+
+On Ticket Purchase
+
+When a customer buys tickets, charge their card using Stripe Checkout or Payment Intents API.
+
+Use application_fee_amount to keep the platform fee (e.g., 20%).
+
+The rest goes into the organizer’s Stripe Connected Account (Standard or Express).
+
+Revenue Split Example
+
+User pays $100 for tickets.
+
+Platform fee = $20.
+
+Organizer balance = $80 (instantly visible in their connected account).
+
+The remaining $20 can be kept in the platform account until a payout request is approved by the Super Admin.
+
+Organizer Payout Flow
+
+Organizer requests payout from dashboard.
+
+Super Admin can approve/reject the request.
+
+If approved → trigger Stripe Payout API to send money to the organizer’s bank account linked to their Stripe account.
+
+APIs Needed
+
+Create Payment Intent (Ticket Purchase)
+
+POST /v1/payment_intents with application_fee_amount and transfer_data[destination] = {connected_account_id}.
+
+Create Transfer (Hold/Delayed release)
+
+POST /v1/transfers to move money later from platform account to organizer account after approval.
+
+Create Payout (Bank Withdraw for Organizer)
+
+POST /v1/payouts to send funds from Stripe balance to organizer’s bank.
+
+Retrieve Balance
+
+GET /v1/balance to show available and pending amounts.
+
+List Payouts / Transfers
+
+GET /v1/payouts and GET /v1/transfers for history.
+
+Frontend & Dashboard
+
+Organizer View: See total sales, platform fees, pending balance, requested payouts, payout history.
+
+Super Admin View: See all payout requests, approve/reject, trigger transfers.
+
+Notifications: When payout is approved/released, send real-time updates (Pusher/Stripe webhooks).
+
+Webhooks (Important)
+
+Handle payment_intent.succeeded → update ticket order as paid.
+
+Handle transfer.paid and payout.paid → mark organizer payout as completed.
+
+👉 Build me a secure, production-ready implementation using Stripe Connect, with auto fee deduction, manual payout approval by Super Admin, and APIs for payment, transfers, and payouts.

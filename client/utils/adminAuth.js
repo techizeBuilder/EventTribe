@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 // Centralized admin API call handler with retry logic
 let isTokenCleared = false;
 let tokenClearTimeout = null;
+let lastAuthToastTime = 0;
 
 export async function makeAdminApiCall(url, options = {}) {
   try {
@@ -10,7 +11,12 @@ export async function makeAdminApiCall(url, options = {}) {
     
     if (!token) {
       if (!isTokenCleared) {
-        toast.error("Admin authentication required");
+        // Prevent duplicate toasts within 3 seconds
+        const now = Date.now();
+        if (now - lastAuthToastTime > 3000) {
+          toast.error("Admin authentication required");
+          lastAuthToastTime = now;
+        }
         redirectToLogin();
       }
       return null;
@@ -65,4 +71,43 @@ function handleTokenExpiry() {
 function redirectToLogin() {
   // Use window.location to ensure clean redirect
   window.location.href = "/admin-login";
+}
+
+// Helper function for components to check authentication without duplicate toasts
+export function checkAdminAuth() {
+  const token = localStorage.getItem("adminToken");
+  const user = localStorage.getItem("adminUser");
+  
+  if (!token || !user) {
+    // Prevent duplicate toasts within 3 seconds
+    const now = Date.now();
+    if (now - lastAuthToastTime > 3000) {
+      toast.error("Admin authentication required");
+      lastAuthToastTime = now;
+    }
+    redirectToLogin();
+    return null;
+  }
+  
+  try {
+    const userData = JSON.parse(user);
+    if (!['admin', 'super_admin'].includes(userData.role)) {
+      const now = Date.now();
+      if (now - lastAuthToastTime > 3000) {
+        toast.error("Admin access required");
+        lastAuthToastTime = now;
+      }
+      redirectToLogin();
+      return null;
+    }
+    return userData;
+  } catch (error) {
+    const now = Date.now();
+    if (now - lastAuthToastTime > 3000) {
+      toast.error("Invalid admin session");
+      lastAuthToastTime = now;
+    }
+    redirectToLogin();
+    return null;
+  }
 }

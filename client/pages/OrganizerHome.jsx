@@ -79,10 +79,6 @@ export default function OrganizerHome() {
     alert(`Managing tickets for event: ${eventId}`);
   };
 
-  const handleViewAnalytics = (eventId) => {
-    alert(`Viewing analytics for event: ${eventId}`);
-  };
-
   const handleGenerateSampleData = async () => {
     try {
       await fetch("/api/organizer/sample-data/all", {
@@ -169,7 +165,6 @@ export default function OrganizerHome() {
     },
   ];
 
-  const [activeTab, setActiveTab] = useState("upcoming");
   const [searchTerm, setSearchTerm] = useState("");
 
   return (
@@ -213,8 +208,12 @@ export default function OrganizerHome() {
                 )}
               </div>
               <div className="space-y-1">
-                <h3 className="text-xl sm:text-2xl font-bold text-white">{stat.value}</h3>
-                <p className="text-white text-xs sm:text-sm font-medium">{stat.label}</p>
+                <h3 className="text-xl sm:text-2xl font-bold text-white">
+                  {stat.value}
+                </h3>
+                <p className="text-white text-xs sm:text-sm font-medium">
+                  {stat.label}
+                </p>
                 <p className="text-gray-400 text-xs">{stat.subtitle}</p>
               </div>
             </div>
@@ -232,8 +231,8 @@ export default function OrganizerHome() {
                   Bring Your Event Dreams to Life
                 </h2>
                 <p className="text-gray-300 text-sm sm:text-lg leading-relaxed">
-                  With Event Tribe, set up, sell out, and fly high. Your perfect event
-                  is just a few clicks away.
+                  With Event Tribe, set up, sell out, and fly high. Your perfect
+                  event is just a few clicks away.
                 </p>
               </div>
 
@@ -312,8 +311,10 @@ export default function OrganizerHome() {
           </div>
         </div>
 
-        {/* Events Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-1 gap-8 mb-8">
+
+        {/* Events and Recent Orders Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          {/* Events Section */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-white">Events</h3>
@@ -322,29 +323,6 @@ export default function OrganizerHome() {
               Manage your upcoming and past events
             </p>
 
-            {/* Event Tabs */}
-            <div className="flex mb-6">
-              <button
-                onClick={() => setActiveTab("upcoming")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg mr-2 transition-colors duration-200 ${
-                  activeTab === "upcoming"
-                    ? "bg-white text-black"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                }`}
-              >
-                UPCOMING
-              </button>
-              <button
-                onClick={() => setActiveTab("past")}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors duration-200 ${
-                  activeTab === "past"
-                    ? "bg-white text-black"
-                    : "bg-gray-800 text-gray-300 hover:bg-gray-700"
-                }`}
-              >
-                PAST
-              </button>
-            </div>
 
             {/* Recent Events */}
             <div className="space-y-4">
@@ -353,7 +331,7 @@ export default function OrganizerHome() {
                   <div className="text-gray-400">Loading events...</div>
                 </div>
               ) : eventsData.length > 0 ? (
-                eventsData.map((event) => (
+                eventsData.slice(0, 5).map((event) => (
                   <div
                     key={event._id || event.id}
                     className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:bg-gray-750 transition-colors"
@@ -389,7 +367,7 @@ export default function OrganizerHome() {
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-gray-300 text-sm">
-                        {event.attendeeCount || 0} registered
+                        {event.totalTicketsSold || event.attendeeCount || event.registrations || 0} registered
                       </span>
                       <div className="text-right">
                         <div className="text-2xl font-bold text-green-400">
@@ -397,38 +375,6 @@ export default function OrganizerHome() {
                         </div>
                         <div className="text-sm text-gray-500">Revenue</div>
                       </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="mt-4 pt-4 border-t border-gray-700 flex gap-3">
-                      <button
-                        onClick={() => handleViewEvent(event._id || event.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEditEvent(event._id || event.id)}
-                        className="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleManageTickets(event._id || event.id)
-                        }
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Tickets
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleViewAnalytics(event._id || event.id)
-                        }
-                        className="bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                      >
-                        Analytics
-                      </button>
                     </div>
                   </div>
                 ))
@@ -459,8 +405,10 @@ export default function OrganizerHome() {
               )}
             </div>
 
-            {/* Recent Orders Section */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+          </div>
+          
+          {/* Recent Orders Section */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-bold text-white">Recent Orders</h3>
               </div>
@@ -494,132 +442,54 @@ export default function OrganizerHome() {
                     date: "Dec 23, 2024",
                     status: "Pending",
                   },
-                ].map((order) => (
-                  <div
-                    key={order.id}
-                    className="bg-gray-800 border border-gray-700 rounded-lg p-4 flex items-center justify-between"
-                  >
-                    <div>
-                      <h4 className="text-white font-medium">{order.id}</h4>
-                      <p className="text-gray-400 text-sm">
-                        {order.customer} • {order.event}
-                      </p>
-                      <p className="text-gray-500 text-xs">{order.date}</p>
+                  {
+                    id: "#ORD-2024-1237",
+                    customer: "Emily Chen",
+                    event: "Art Gallery Opening",
+                    amount: "$75.00",
+                    date: "Dec 22, 2024",
+                    status: "Completed",
+                  },
+                  {
+                    id: "#ORD-2024-1238",
+                    customer: "David Wilson",
+                    event: "Business Workshop",
+                    amount: "$199.00",
+                    date: "Dec 21, 2024",
+                    status: "Completed",
+                  },
+                ]
+                  .slice(0, 5)
+                  .map((order) => (
+                    <div
+                      key={order.id}
+                      className="bg-gray-800 border border-gray-700 rounded-lg p-4 flex items-center justify-between"
+                    >
+                      <div>
+                        <h4 className="text-white font-medium">{order.id}</h4>
+                        <p className="text-gray-400 text-sm">
+                          {order.customer} • {order.event}
+                        </p>
+                        <p className="text-gray-500 text-xs">{order.date}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-semibold">
+                          {order.amount}
+                        </p>
+                        <span
+                          className={`px-2 py-1 rounded text-xs font-medium ${
+                            order.status === "Completed"
+                              ? "bg-green-900 text-green-300"
+                              : "bg-yellow-900 text-yellow-300"
+                          }`}
+                        >
+                          {order.status}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white font-semibold">{order.amount}</p>
-                      <span
-                        className={`px-2 py-1 rounded text-xs font-medium ${
-                          order.status === "Completed"
-                            ? "bg-green-900 text-green-300"
-                            : "bg-yellow-900 text-yellow-300"
-                        }`}
-                      >
-                        {order.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
 
-              {/* Search Bar */}
-              <div className="relative mb-6">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search Recent Orders"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-gray-600"
-                />
-              </div>
-
-              {/* No Orders State */}
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-sm">
-                  No matching records were found
-                </div>
-              </div>
-
-              {/* Order Actions */}
-              <div className="flex items-center justify-between mt-6 pt-4 border-t border-gray-800">
-                <div className="flex space-x-2">
-                  <button className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors duration-200">
-                    Affiliate
-                  </button>
-                  <button className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors duration-200">
-                    List
-                  </button>
-                  <button className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs rounded transition-colors duration-200">
-                    CSV
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Support Center Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Support Center</h3>
-                <Link
-                  to="/organizer/support-center"
-                  className="bg-white hover:bg-gray-100 text-black px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
-                >
-                  View Desk
-                </Link>
-              </div>
-              <p className="text-gray-400 text-sm mb-6">
-                View and respond to support tickets directly in Flite
-              </p>
-
-              {/* No Messages State */}
-              <div className="text-center py-12">
-                <FiMessageSquare className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <h4 className="text-white text-lg font-medium mb-2">
-                  No Messages Yet
-                </h4>
-                <p className="text-gray-400 text-sm">
-                  When users send messages they will appear here.
-                </p>
-              </div>
-            </div>
-
-            {/* Additional Support Info */}
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Get Help</h3>
-              </div>
-              <p className="text-gray-400 text-sm mb-6">
-                Need assistance? We're here to help you succeed
-              </p>
-
-              <div className="space-y-4">
-                <a
-                  href="mailto:support@flite.city"
-                  className="flex items-center space-x-3 p-4 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors duration-200"
-                >
-                  <FiMail className="w-5 h-5 text-blue-400" />
-                  <div>
-                    <h4 className="text-white font-medium">Email Support</h4>
-                    <p className="text-gray-400 text-sm">
-                      Get help via email within 24 hours
-                    </p>
-                  </div>
-                </a>
-
-                <div className="flex items-center space-x-3 p-4 bg-gray-800 rounded-lg">
-                  <FiLifeBuoy className="w-5 h-5 text-green-400" />
-                  <div>
-                    <h4 className="text-white font-medium">Help Center</h4>
-                    <p className="text-gray-400 text-sm">
-                      Browse our knowledge base and FAQs
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>

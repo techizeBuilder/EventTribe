@@ -1,0 +1,83 @@
+Functional Requirements:
+
+Ticket Purchase (Stripe PaymentIntent API)
+
+Use Destination Charges with transfer_data[destination] = organizer’s connected account.
+
+Use application_fee_amount = 20% of ticket price.
+
+Example:
+
+Payment: $100
+
+Destination (organizer): $80
+
+Application Fee (platform): $20
+
+Organizer Payout (80%)
+
+The organizer’s 80% is in their Stripe balance immediately.
+
+They can get it anytime through automatic or manual payout schedule (no admin approval).
+
+Endpoint: POST /v1/payouts with header Stripe-Account: acct_xxx.
+
+Super Admin Approval (20%)
+
+The platform’s 20% remains in the platform account balance.
+
+Organizer can request release of this amount.
+
+A Super Admin dashboard should show all requests.
+
+If approved → call Stripe Payout API (POST /v1/payouts) from the platform Stripe account to the organizer’s bank.
+
+APIs Needed
+
+Create Payment Intent:
+
+POST /v1/payment_intents with application_fee_amount + transfer_data[destination].
+
+Organizer Auto-Payouts (80%): No admin approval required. Stripe handles via connected account payouts.
+
+Super Admin Manual Payout (20%): Call POST /v1/payouts from platform account after approval.
+
+Check Balance: GET /v1/balance for both platform & organizer accounts.
+
+List Payouts: GET /v1/payouts (platform & connected accounts).
+
+Dashboard Requirements
+
+Organizer View:
+
+Shows sales, 80% available balance, payout history.
+
+Withdraw anytime (handled by Stripe Connect payouts).
+
+Super Admin View:
+
+Shows all 20% requests.
+
+Approve/reject with remarks.
+
+On approve → trigger Stripe Payout API.
+
+Webhooks to Handle
+
+payment_intent.succeeded → confirm ticket sale.
+
+payout.paid → confirm payout released.
+
+payout.failed → notify failure.
+
+👉 Build me a secure, production-ready implementation with:
+
+Stripe Connect APIs (PaymentIntent, Payouts, Balance).
+
+Backend (Laravel/Node) for managing split logic, requests, approvals.
+
+Organizer Dashboard to track and withdraw 80%.
+
+Super Admin Dashboard to approve/reject 20% payouts.
+
+Webhook handling for real-time payout status updates.

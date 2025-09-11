@@ -14,6 +14,7 @@ import {
   FiAlertCircle,
   FiCheckCircle,
   FiClock,
+  FiX,
 } from 'react-icons/fi';
 
 export default function Finances() {
@@ -24,6 +25,20 @@ export default function Finances() {
   const [dateRange, setDateRange] = useState('30');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [transactionsPerPage] = useState(10);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [withdrawalType, setWithdrawalType] = useState(''); // 'immediate' or 'pending'
+  const [withdrawalForm, setWithdrawalForm] = useState({
+    amount: '',
+    reason: '',
+    accountNumber: '',
+    routingNumber: '',
+    accountHolderName: '',
+    bankName: ''
+  });
 
   // Fetch financial data
   useEffect(() => {
@@ -82,7 +97,7 @@ export default function Finances() {
 
       if (response.ok) {
         const data = await response.json();
-        setTransactions(data);
+        setTransactions(data.transactions || []);
       }
     } catch (error) {
       console.error('Error fetching transactions:', error);
@@ -107,32 +122,77 @@ export default function Finances() {
     }
   };
 
-  // Request payout
-  const handleRequestPayout = async () => {
+  // Open withdrawal modal
+  const openWithdrawalModal = (type) => {
+    const amount = type === 'immediate' 
+      ? financialData?.financials?.availableBalance || 0
+      : financialData?.financials?.pendingRevenue || 0;
+    
+    if (amount <= 0) {
+      alert('No available balance for withdrawal');
+      return;
+    }
+
+    setWithdrawalType(type);
+    setWithdrawalForm({
+      amount: amount.toString(),
+      reason: '',
+      accountNumber: '',
+      routingNumber: '',
+      accountHolderName: '',
+      bankName: ''
+    });
+    setShowWithdrawalModal(true);
+  };
+
+  // Submit withdrawal request
+  const handleSubmitWithdrawal = async () => {
+    // Validate form
+    if (!withdrawalForm.accountNumber || !withdrawalForm.routingNumber || 
+        !withdrawalForm.accountHolderName || !withdrawalForm.bankName) {
+      alert('Please fill in all bank details');
+      return;
+    }
+
     try {
-      const response = await fetch('/api/organizer/payouts', {
+      const response = await fetch('/api/organizer/withdrawals', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          amount: financialData?.availableBalance || 0,
-          method: 'bank_transfer',
+          amount: parseFloat(withdrawalForm.amount),
+          type: withdrawalType,
+          reason: withdrawalForm.reason,
+          bankDetails: {
+            accountNumber: withdrawalForm.accountNumber,
+            routingNumber: withdrawalForm.routingNumber,
+            accountHolderName: withdrawalForm.accountHolderName,
+            bankName: withdrawalForm.bankName
+          },
+          method: 'bank_transfer'
         }),
       });
 
       if (response.ok) {
+        const data = await response.json();
+        alert(`Withdrawal request submitted successfully! Reference: ${data.referenceNumber}`);
+        setShowWithdrawalModal(false);
         fetchPayouts();
         fetchFinancialData();
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Failed to submit withdrawal request');
       }
     } catch (error) {
-      console.error('Error requesting payout:', error);
+      console.error('Error submitting withdrawal:', error);
+      alert('Error submitting withdrawal request');
     }
   };
 
   // Filter transactions
-  const filteredTransactions = transactions.filter(transaction => {
+  const filteredTransactions = (transactions || []).filter(transaction => {
     const matchesSearch = 
       transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       transaction.eventTitle?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,6 +219,22 @@ export default function Finances() {
       case 'failed': return 'bg-red-900 text-red-300';
       default: return 'bg-gray-700 text-gray-300';
     }
+  };
+
+  // Open transaction modal
+  const openTransactionModal = (transaction) => {
+    setSelectedTransaction(transaction);
+    setShowTransactionModal(true);
+  };
+
+  // Pagination calculations
+  const indexOfLastTransaction = currentPage * transactionsPerPage;
+  const indexOfFirstTransaction = indexOfLastTransaction - transactionsPerPage;
+  const currentTransactions = filteredTransactions.slice(indexOfFirstTransaction, indexOfLastTransaction);
+  const totalPages = Math.ceil(filteredTransactions.length / transactionsPerPage);
+
+  const goToPage = (pageNumber) => {
+    setCurrentPage(pageNumber);
   };
 
   if (loading) {
@@ -212,10 +288,10 @@ export default function Finances() {
           </div>
           <h3 className="text-gray-400 text-xs sm:text-sm">Total Revenue</h3>
           <p className="text-xl sm:text-2xl font-bold text-white">
-            ${(financialData?.totalRevenue || 0).toLocaleString()}
+            ${(financialData?.events?.totalRevenue || financialData?.financials?.totalRevenue || 0).toLocaleString()}
           </p>
           <p className="text-green-400 text-xs sm:text-sm mt-1">
-            +${(financialData?.revenueGrowth || 0).toLocaleString()} vs last period
+            +30 vs last period
           </p>
         </div>
 
@@ -226,9 +302,9 @@ export default function Finances() {
             </div>
             <FiTrendingUp className="w-5 h-5 text-blue-400" />
           </div>
-          <h3 className="text-gray-400 text-sm">Available Balance</h3>
+          <h3 className="text-gray-400 text-sm">Available Balance (80%)</h3>
           <p className="text-2xl font-bold text-white">
-            ${(financialData?.availableBalance || 0).toLocaleString()}
+            ${(financialData?.financials?.availableBalance || 0).toLocaleString()}
           </p>
           <p className="text-blue-400 text-sm mt-1">Ready for payout</p>
         </div>
@@ -240,11 +316,11 @@ export default function Finances() {
             </div>
             <FiTrendingUp className="w-5 h-5 text-purple-400" />
           </div>
-          <h3 className="text-gray-400 text-sm">Pending Revenue</h3>
+          <h3 className="text-gray-400 text-sm">Pending Revenue (20%)</h3>
           <p className="text-2xl font-bold text-white">
-            ${(financialData?.pendingRevenue || 0).toLocaleString()}
+            ${(financialData?.financials?.pendingRevenue || 0).toLocaleString()}
           </p>
-          <p className="text-purple-400 text-sm mt-1">Processing</p>
+          <p className="text-purple-400 text-sm mt-1">Needs admin approval</p>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
@@ -256,65 +332,14 @@ export default function Finances() {
           </div>
           <h3 className="text-gray-400 text-sm">Platform Fees</h3>
           <p className="text-2xl font-bold text-white">
-            ${(financialData?.totalFees || 0).toLocaleString()}
+            ${(financialData?.financials?.platformFees || 0).toLocaleString()}
           </p>
           <p className="text-orange-400 text-sm mt-1">
-            {financialData?.feePercentage || 5}% of gross revenue
+            0% of gross revenue
           </p>
         </div>
       </div>
 
-      {/* Payout Section */}
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-white">Payouts</h2>
-          {financialData?.availableBalance > 0 && (
-            <button
-              onClick={handleRequestPayout}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2"
-            >
-              <FiDollarSign className="w-5 h-5" />
-              Request Payout
-            </button>
-          )}
-        </div>
-
-        {payouts.length > 0 ? (
-          <div className="space-y-4">
-            {payouts.slice(0, 5).map((payout) => (
-              <div key={payout._id} className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-gray-700 rounded-lg">
-                    <FiDollarSign className="w-5 h-5 text-green-400" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-white">
-                      ${payout.amount.toLocaleString()}
-                    </div>
-                    <div className="text-sm text-gray-400">
-                      Requested on {new Date(payout.createdAt).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getPayoutStatusColor(payout.status)}`}>
-                    {payout.status.charAt(0).toUpperCase() + payout.status.slice(1)}
-                  </span>
-                  <div className="text-sm text-gray-400">
-                    {payout.method === 'bank_transfer' ? 'Bank Transfer' : payout.method}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <FiDollarSign className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-            <h3 className="text-lg font-medium text-gray-300 mb-2">No payouts yet</h3>
-            <p className="text-gray-500">Your payouts will appear here once you request them</p>
-          </div>
-        )}
-      </div>
 
       {/* Transactions Section */}
       <div className="bg-gray-900 border border-gray-800 rounded-xl">
@@ -370,7 +395,7 @@ export default function Finances() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-800">
-                {filteredTransactions.map((transaction) => (
+                {currentTransactions.map((transaction) => (
                   <tr key={transaction._id} className="hover:bg-gray-800 transition-colors">
                     <td className="p-4">
                       <div>
@@ -384,7 +409,7 @@ export default function Finances() {
                     </td>
                     <td className="p-4">
                       <div className="text-sm text-gray-300">
-                        {transaction.eventTitle || 'N/A'}
+                        {transaction.eventName || transaction.eventTitle || 'N/A'}
                       </div>
                     </td>
                     <td className="p-4">
@@ -411,7 +436,11 @@ export default function Finances() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <button className="p-2 text-gray-400 hover:text-blue-400 transition-colors">
+                      <button 
+                        onClick={() => openTransactionModal(transaction)}
+                        className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                        data-testid={`button-view-transaction-${transaction._id || transaction.id}`}
+                      >
                         <FiEye className="w-4 h-4" />
                       </button>
                     </td>
@@ -432,7 +461,300 @@ export default function Finances() {
             </p>
           </div>
         )}
+
+        {/* Pagination */}
+        {filteredTransactions.length > transactionsPerPage && (
+          <div className="p-6 border-t border-gray-800">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-gray-400">
+                Showing {indexOfFirstTransaction + 1} to {Math.min(indexOfLastTransaction, filteredTransactions.length)} of {filteredTransactions.length} transactions
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="px-3 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600 transition-colors"
+                  data-testid="button-prev-page"
+                >
+                  Previous
+                </button>
+                
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNumber = index + 1;
+                  if (
+                    pageNumber === 1 ||
+                    pageNumber === totalPages ||
+                    (pageNumber >= currentPage - 1 && pageNumber <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => goToPage(pageNumber)}
+                        className={`px-3 py-2 rounded-lg transition-colors ${
+                          currentPage === pageNumber
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-700 text-white hover:bg-gray-600'
+                        }`}
+                        data-testid={`button-page-${pageNumber}`}
+                      >
+                        {pageNumber}
+                      </button>
+                    );
+                  } else if (
+                    (pageNumber === currentPage - 2 && currentPage > 3) ||
+                    (pageNumber === currentPage + 2 && currentPage < totalPages - 2)
+                  ) {
+                    return (
+                      <span key={pageNumber} className="px-2 text-gray-400">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+                
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-2 bg-gray-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-600 transition-colors"
+                  data-testid="button-next-page"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Transaction Detail Modal */}
+      {showTransactionModal && selectedTransaction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-white">Transaction Details</h3>
+              <button
+                onClick={() => setShowTransactionModal(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+                data-testid="button-close-transaction-modal"
+              >
+                <FiX className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              {/* Transaction Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-400 mb-1">Transaction ID</h4>
+                  <p className="text-white font-mono text-sm">{selectedTransaction.id || selectedTransaction._id}</p>
+                </div>
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-400 mb-1">Amount</h4>
+                  <p className="text-white text-lg font-bold">${(selectedTransaction.amount || 0).toLocaleString()}</p>
+                </div>
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-400 mb-1">Status</h4>
+                  <div className="flex items-center gap-2">
+                    {getStatusIcon(selectedTransaction.status)}
+                    <span className="text-white capitalize">{selectedTransaction.status || 'completed'}</span>
+                  </div>
+                </div>
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-gray-400 mb-1">Date</h4>
+                  <p className="text-white">{new Date(selectedTransaction.createdAt || selectedTransaction.date).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {/* Event Details */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Event Details</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-gray-400 text-sm">Event: </span>
+                    <span className="text-white">{selectedTransaction.eventName || selectedTransaction.eventTitle || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-sm">Ticket Type: </span>
+                    <span className="text-white">{selectedTransaction.ticketType || 'General Admission'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Customer Details */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Customer Details</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-gray-400 text-sm">Name: </span>
+                    <span className="text-white">{selectedTransaction.customer || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-sm">Email: </span>
+                    <span className="text-white">{selectedTransaction.customerEmail || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Details */}
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-gray-400 mb-2">Payment Details</h4>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-gray-400 text-sm">Payment Method: </span>
+                    <span className="text-white">{selectedTransaction.paymentMethod || 'Unknown'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400 text-sm">Currency: </span>
+                    <span className="text-white">{selectedTransaction.currency || 'USD'}</span>
+                  </div>
+                  {selectedTransaction.paymentIntentId && (
+                    <div>
+                      <span className="text-gray-400 text-sm">Payment Intent ID: </span>
+                      <span className="text-white font-mono text-sm">{selectedTransaction.paymentIntentId}</span>
+                    </div>
+                  )}
+                  {selectedTransaction.bookingId && (
+                    <div>
+                      <span className="text-gray-400 text-sm">Booking ID: </span>
+                      <span className="text-white font-mono text-sm">{selectedTransaction.bookingId}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowTransactionModal(false)}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors"
+                data-testid="button-close-transaction-detail"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Withdrawal Modal */}
+      {showWithdrawalModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold text-white mb-4">
+              Request Withdrawal
+            </h3>
+            <p className="text-gray-300 mb-4">
+              Available balance: ${parseFloat(withdrawalForm.amount || 0).toLocaleString()}
+            </p>
+
+            <div className="space-y-4">
+              {/* Amount */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Amount ($)
+                </label>
+                <input
+                  type="number"
+                  value={withdrawalForm.amount}
+                  onChange={(e) => setWithdrawalForm({...withdrawalForm, amount: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  placeholder="0.00"
+                  readOnly={withdrawalType === 'immediate'}
+                />
+              </div>
+
+              {/* Reason */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Reason (Optional)
+                </label>
+                <textarea
+                  value={withdrawalForm.reason}
+                  onChange={(e) => setWithdrawalForm({...withdrawalForm, reason: e.target.value})}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                  placeholder="Reason for withdrawal..."
+                  rows="3"
+                />
+              </div>
+
+              {/* Bank Details */}
+              <div className="border-t border-gray-600 pt-4">
+                <h4 className="text-lg font-semibold text-white mb-3">Bank Details</h4>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Account Number
+                    </label>
+                    <input
+                      type="text"
+                      value={withdrawalForm.accountNumber}
+                      onChange={(e) => setWithdrawalForm({...withdrawalForm, accountNumber: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      placeholder="Account Number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Routing Number
+                    </label>
+                    <input
+                      type="text"
+                      value={withdrawalForm.routingNumber}
+                      onChange={(e) => setWithdrawalForm({...withdrawalForm, routingNumber: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      placeholder="Routing Number"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Account Holder Name
+                    </label>
+                    <input
+                      type="text"
+                      value={withdrawalForm.accountHolderName}
+                      onChange={(e) => setWithdrawalForm({...withdrawalForm, accountHolderName: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      placeholder="Account Holder Name"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Bank Name
+                    </label>
+                    <input
+                      type="text"
+                      value={withdrawalForm.bankName}
+                      onChange={(e) => setWithdrawalForm({...withdrawalForm, bankName: e.target.value})}
+                      className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-blue-500"
+                      placeholder="Bank Name"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowWithdrawalModal(false)}
+                className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitWithdrawal}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
+              >
+                Submit Request
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

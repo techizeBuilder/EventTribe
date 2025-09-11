@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import { MongoClient, ObjectId } from "mongodb";
 
 const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+  process.env.JWT_SECRET || "farhanSecretkey";
 const MONGO_URI =
   process.env.MONGODB_URI ||
   "mongodb+srv://jeeturadicalloop:Mjvesqnj8gY3t0zP@cluster0.by2xy6x.mongodb.net/eventTribe";
@@ -34,6 +34,7 @@ class AuthService {
   }
 
   verifyToken(token) {
+    // console.log('Token is a', token);
     try {
       return jwt.verify(token, JWT_SECRET);
     } catch (error) {
@@ -172,30 +173,28 @@ class AuthService {
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
-  try {
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
-    if (!token) {
-      return res.status(401).json({ message: "Access token required" });
-    }
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
-    const authService = new AuthService();
-    const decoded = authService.verifyToken(token);
-
-    // Get user data
-    await authService.connect();
-    const user = await authService.getUserById(decoded.userId);
-
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(403).json({ message: "Invalid token" });
+  if (!token) {
+    return res.status(401).json({ message: "Access token required" });
   }
+
+  const authService = new AuthService();
+  const decoded = authService.verifyToken(token);
+
+  // Get user data
+  await authService.connect();
+  const user = await authService.getUserById(decoded.userId);
+
+  if (!user) {
+    return res.status(401).json({ message: "User not found" });
+  }
+
+  req.user = user;
+  next();
+
 };
 
 // Middleware to check user role

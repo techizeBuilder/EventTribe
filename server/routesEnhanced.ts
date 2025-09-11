@@ -100,7 +100,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
       );
 
       // Group bookings by event title
-      const eventGroups = bookings.reduce((acc, booking) => {
+      const eventGroups = bookings.reduce((acc: any, booking: any) => {
         const eventTitle = booking.eventTitle || "Unknown Event";
         if (!acc[eventTitle]) {
           acc[eventTitle] = [];
@@ -111,7 +111,7 @@ export async function registerEnhancedRoutes(app: Express): Promise<Server> {
 
       // Calculate earnings per event
       const eventEarnings = Object.entries(eventGroups).map(
-        ([eventTitle, eventBookings]) => {
+        ([eventTitle, eventBookings]: [string, any[]]) => {
           const revenue = eventBookings.reduce((total, booking) => {
             return total + (booking.totalAmount || booking.amount || 0);
           }, 0);

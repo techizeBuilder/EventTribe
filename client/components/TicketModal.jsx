@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiX, FiInfo } from 'react-icons/fi';
 
-const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
+const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null, existingTickets = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -26,6 +26,10 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
     earlyBirdPrice: '',
     earlyBirdEndDate: '',
     creditPrice: '',
+    // Combo ticket fields
+    comboTitle: '',
+    comboTickets: '',
+    comboDiscount: ''
   });
 
   // Reset form when editingTicket changes
@@ -54,10 +58,14 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
         // Additional dynamic fields
         ticketPassword: editingTicket.ticketPassword || '',
         earlyBirdPrice: editingTicket.earlyBirdPrice || '',
-        earlyBirdEndDate: editingTicket.earlyBirdEndDate || '',
+        earlyBirdEndDate: editingTicket.earlyBirdEndDate ? 
+          new Date(editingTicket.earlyBirdEndDate).toISOString().slice(0, 16) : '',
         creditPrice: editingTicket.creditPrice || '',
+        // Combo ticket fields
+        comboTitle: editingTicket.comboTitle || '',
+        comboTickets: Array.isArray(editingTicket.comboTickets) ? editingTicket.comboTickets : [],
+        comboDiscount: editingTicket.comboDiscount || ''
       };
-      console.log('Setting form data:', newFormData); // Debug log
       setFormData(newFormData);
     } else {
       // Reset to empty form for new ticket
@@ -83,16 +91,41 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
         earlyBirdPrice: '',
         earlyBirdEndDate: '',
         creditPrice: '',
+        // Combo ticket fields  
+        comboTitle: '',
+        comboTickets: [],
+        comboDiscount: ''
       });
     }
   }, [editingTicket]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // Handle combo tickets array
+    if (name === 'comboTickets' && type === 'checkbox') {
+      setFormData(prev => {
+        const currentComboTickets = Array.isArray(prev.comboTickets) ? prev.comboTickets : [];
+        if (checked) {
+          // Add ticket to combo
+          return {
+            ...prev,
+            comboTickets: [...currentComboTickets, value]
+          };
+        } else {
+          // Remove ticket from combo
+          return {
+            ...prev,
+            comboTickets: currentComboTickets.filter(ticketId => ticketId !== value)
+          };
+        }
+      });
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const handleSave = () => {
@@ -131,7 +164,11 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
       ticketPassword: formData.ticketPassword,
       earlyBirdPrice: formData.earlyBirdPrice ? parseFloat(formData.earlyBirdPrice) : null,
       earlyBirdEndDate: formData.earlyBirdEndDate,
-      creditPrice: formData.creditPrice ? parseFloat(formData.creditPrice) : null
+      creditPrice: formData.creditPrice ? parseFloat(formData.creditPrice) : null,
+      // Combo ticket fields - ensure arrays are preserved
+      comboTitle: formData.comboTitle,
+      comboTickets: Array.isArray(formData.comboTickets) ? formData.comboTickets : [],
+      comboDiscount: formData.comboDiscount ? parseFloat(formData.comboDiscount) : null
     };
     
     onSave(ticketData);
@@ -337,6 +374,55 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
                     </div>
                   )}
                   
+                  {key === 'enableComboTickets' && formData[key] && (
+                    <div className="ml-6 space-y-2">
+                      <div>
+                        <input
+                          type="text"
+                          name="comboTitle"
+                          value={formData.comboTitle || ''}
+                          onChange={handleInputChange}
+                          placeholder="Combo Package Name (e.g., VIP + Parking)"
+                          className="w-full bg-transparent border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm mb-2"
+                        />
+                        <div className="w-full border border-gray-600 rounded p-3 max-h-32 overflow-y-auto">
+                          <div className="text-gray-400 text-xs mb-2">Select additional tickets for combo:</div>
+                          {existingTickets?.filter((t, i) => i !== editingTicket?.index).length > 0 ? (
+                            existingTickets.filter((t, i) => i !== editingTicket?.index).map((ticket, idx) => {
+                              const ticketValue = String(ticket.name); // Use ticket name as consistent identifier
+                              const isChecked = Array.isArray(formData.comboTickets) && formData.comboTickets.includes(ticketValue);
+                              
+                              return (
+                                <label key={idx} className="flex items-center space-x-2 mb-2 text-white cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    name="comboTickets"
+                                    value={ticketValue}
+                                    checked={isChecked}
+                                    onChange={handleInputChange}
+                                    className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                                  />
+                                  <span className="text-sm">{ticket.name} - ${ticket.price}</span>
+                                </label>
+                              );
+                            })
+                          ) : (
+                            <div className="text-gray-400 text-sm">No other tickets available</div>
+                          )}
+                        </div>
+                        <input
+                          type="number"
+                          name="comboDiscount"
+                          value={formData.comboDiscount || ''}
+                          onChange={handleInputChange}
+                          placeholder="Combo Discount Percentage (e.g., 10 for 10%)"
+                          className="w-full bg-transparent border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 text-sm mt-2"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
                   {key === 'enableWaitlist' && formData[key] && (
                     <div className="ml-6">
                       <label className="block text-white text-xs mb-1">Select Waitlist Ticket</label>
@@ -347,9 +433,19 @@ const TicketModal = ({ isOpen, onClose, onSave, editingTicket = null }) => {
                         className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-500 text-sm"
                       >
                         <option value="">Select ticket</option>
-                        <option value="general">General Admission</option>
-                        <option value="vip">VIP Access</option>
-                        <option value="premium">Premium</option>
+                        {existingTickets && existingTickets.length > 0 ? (
+                          existingTickets.map((ticket, index) => (
+                            <option key={index} value={ticket.name || `ticket-${index}`}>
+                              {ticket.name || `Ticket ${index + 1}`}
+                            </option>
+                          ))
+                        ) : (
+                          <>
+                            <option value="general">General Admission</option>
+                            <option value="vip">VIP Access</option>
+                            <option value="premium">Premium</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   )}

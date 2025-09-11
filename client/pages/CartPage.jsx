@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useCart } from '../hooks/useCart'
 import { FiTrash2, FiMinus, FiPlus, FiShoppingBag } from 'react-icons/fi'
@@ -10,6 +10,19 @@ export default function CartPage() {
   const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
   const navigate = useNavigate()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [forceUpdate, setForceUpdate] = useState(0)
+
+  // Listen for cart updates and force re-render
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      setForceUpdate(prev => prev + 1)
+    }
+
+    window.addEventListener('cartUpdated', handleCartUpdate)
+    return () => {
+      window.removeEventListener('cartUpdated', handleCartUpdate)
+    }
+  }, [])
 
   const handleQuantityChange = async (itemId, newQuantity) => {
     if (newQuantity < 1) {

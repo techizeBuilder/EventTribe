@@ -38,7 +38,7 @@ export default function Events() {
       console.log("Fetching events with token");
 
       const token = localStorage.getItem("token");
-      
+
       if (!token) {
         console.log("No token found, redirecting to login");
         toast.error("Please login first to view events");
@@ -51,12 +51,17 @@ export default function Events() {
       const response = await fetch("/api/organizer/events", {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      console.log("Response status:", response.status, "Response ok:", response.ok);
+      console.log(
+        "Response status:",
+        response.status,
+        "Response ok:",
+        response.ok,
+      );
 
       if (response.ok) {
         const data = await response.json();
@@ -64,22 +69,26 @@ export default function Events() {
         setEvents(Array.isArray(data) ? data : []);
       } else {
         console.error("Response not OK:", response.status, response.statusText);
-        
+
         try {
           const errorData = await response.json();
           console.error("Error response data:", errorData);
-          
+
           if (response.status === 401) {
             toast.error("Authentication failed. Please login again.");
             localStorage.removeItem("token");
             localStorage.removeItem("user");
             navigate("/login");
           } else {
-            toast.error(`Error: ${errorData.message || 'Failed to fetch events'}`);
+            toast.error(
+              `Error: ${errorData.message || "Failed to fetch events"}`,
+            );
           }
         } catch (parseError) {
           console.error("Could not parse error response:", parseError);
-          toast.error(`Server error: ${response.status} ${response.statusText}`);
+          toast.error(
+            `Server error: ${response.status} ${response.statusText}`,
+          );
         }
       }
     } catch (error) {
@@ -323,9 +332,10 @@ export default function Events() {
                                   : "bg-gray-900 text-gray-300"
                     }`}
                   >
-                    {event.status === "pending_approval" 
+                    {event.status === "pending_approval"
                       ? "Pending Approval"
-                      : event.status?.charAt(0).toUpperCase() + event.status?.slice(1)}
+                      : event.status?.charAt(0).toUpperCase() +
+                        event.status?.slice(1)}
                   </span>
                 </div>
 
@@ -337,15 +347,26 @@ export default function Events() {
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center text-sm text-gray-300">
                     <FiCalendar className="w-4 h-4 mr-2" />
-                    Event: {event.eventDate 
-                      ? new Date(event.eventDate).toLocaleDateString() + (event.eventTime ? ` at ${event.eventTime}` : '')
-                      : new Date(event.startDate).toLocaleDateString() + " at " + new Date(event.startDate).toLocaleTimeString()}
+                    Event:{" "}
+                    {event.eventDate
+                      ? new Date(event.eventDate).toLocaleDateString() +
+                        (event.eventTime ? ` at ${event.eventTime}` : "")
+                      : new Date(event.startDate).toLocaleDateString() +
+                        " at " +
+                        new Date(event.startDate).toLocaleTimeString()}
                   </div>
-                  {event.startDate && event.eventDate && new Date(event.startDate).toDateString() !== new Date(event.eventDate).toDateString() && (
-                    <div className="flex items-center text-xs text-gray-400 mt-1">
-                      <span className="ml-6">Booking: {new Date(event.startDate).toLocaleDateString()} - {new Date(event.endDate).toLocaleDateString()}</span>
-                    </div>
-                  )}
+                  {event.startDate &&
+                    event.eventDate &&
+                    new Date(event.startDate).toDateString() !==
+                      new Date(event.eventDate).toDateString() && (
+                      <div className="flex items-center text-xs text-gray-400 mt-1">
+                        <span className="ml-6">
+                          Booking:{" "}
+                          {new Date(event.startDate).toLocaleDateString()} -{" "}
+                          {new Date(event.endDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                   <div className="flex items-center text-sm text-gray-300">
                     <FiMapPin className="w-4 h-4 mr-2" />
                     {event.venue || "Location TBD"}
@@ -353,11 +374,14 @@ export default function Events() {
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center text-gray-300">
                       <FiUsers className="w-4 h-4 mr-2" />
-                      {event.attendeeCount || 0} registered
+                      {event.registrations ||
+                        event.ticketsSold ||
+                        event.attendeeCount ||
+                        0}{" "}
+                      registered
                     </div>
                     <div className="flex items-center text-green-400 font-semibold">
-                      <FiDollarSign className="w-4 h-4 mr-1" />$
-                      {(event.revenue || 0).toLocaleString()}
+                      ${(event.revenue || 0).toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -379,7 +403,9 @@ export default function Events() {
                   </button>
                   {event.status === "draft" && (
                     <button
-                      onClick={() => handleSubmitForApproval(event._id, event.status)}
+                      onClick={() =>
+                        handleSubmitForApproval(event._id, event.status)
+                      }
                       className="px-3 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white"
                       title="Submit for Admin Approval"
                     >

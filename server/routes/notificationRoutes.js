@@ -171,8 +171,10 @@ async function sendOrganizerEmail(bookingData, organizerEmail) {
 // Import the new email service
 import { sendAttendeeNotification, sendOrganizerNotification, testEmailConnection } from '../services/emailService.js';
 
-// Test email connection on startup
-testEmailConnection();
+// Test email connection on startup (non-blocking)
+testEmailConnection().catch(err => {
+  console.log(`[${new Date().toLocaleTimeString()}] Email service unavailable - app will continue without email notifications`);
+});
 
 // Test endpoint for email functionality
 router.post('/test-email', async (req, res) => {

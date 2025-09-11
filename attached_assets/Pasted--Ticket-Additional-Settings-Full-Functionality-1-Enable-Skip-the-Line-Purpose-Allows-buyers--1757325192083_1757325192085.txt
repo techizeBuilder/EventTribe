@@ -1,0 +1,88 @@
+🎟️ Ticket Additional Settings – Full Functionality
+1. Enable Skip the Line
+
+Purpose: Allows buyers of this ticket to bypass general entry lines at the venue.
+
+Implementation:
+
+Add a flag skip_the_line: true in ticket settings.
+
+Generate a special QR code / badge that shows “Skip the Line”.
+
+At the event gate, staff can scan and allow entry through a fast-track line.
+
+2. Password Protect
+
+Purpose: Restricts ticket purchase to people who know a password/code. Useful for private sales or VIPs.
+
+Implementation:
+
+Ticket has password_protected: true and a password_value.
+
+On checkout, users must enter the password.
+
+Validation: allow purchase only if password matches.
+
+3. Enable Bundle
+
+Purpose: Allows selling ticket bundles (e.g., “Buy 5 tickets for the price of 4”).
+
+Implementation:
+
+Define bundle rules (min_qty, bundle_price, free_tickets).
+
+Example: Buy 5 Regular tickets → pay for 4.
+
+On checkout, auto-apply the bundle pricing if quantity matches.
+
+4. Enable Early Bird
+
+Purpose: Offers discounted price for early buyers.
+
+Implementation:
+
+Ticket has early_bird: true with start_date, end_date, and discount_price.
+
+Before the deadline, users pay discounted price.
+
+After deadline, price reverts to normal.
+
+Display countdown on frontend (“Early Bird ends in X days”).
+
+5. Cover Ticket
+
+Purpose: A ticket that includes entry + additional benefits (e.g., free drink, food coupon, merchandise).
+
+Implementation:
+
+Ticket has cover_ticket: true with benefits: [“1 Free Drink”, “Backstage Access”].
+
+On ticket generation, show included perks.
+
+Venue staff can scan and redeem benefits.
+
+6. Enable Combo Tickets
+
+Purpose: Sell multiple tickets as a package (e.g., VIP + Parking + Food Coupon).
+
+Implementation:
+
+Ticket has combo: true with combo_items: [ticket_id1, ticket_id2, …].
+
+When user buys, system automatically issues all linked tickets.
+
+Checkout shows full combo package.
+
+7. Enable Waitlist
+
+Purpose: If tickets are sold out, users can join a waitlist. If someone cancels, waitlisted users are notified.
+
+Implementation:
+
+Ticket has waitlist_enabled: true.
+
+When sold out, show “Join Waitlist” instead of Buy button.
+
+Store waitlist entries (user_id, event_id, ticket_id).
+
+On ticket availability, send email/app notification to next person in waitlist.

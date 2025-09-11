@@ -1,0 +1,74 @@
+{
+    "subject": "I am fecing issue to create event",
+    "description": "I am fecing issue to create event not resolve issue.",
+    "customerEmail": "jeetu.mj12@gmail.com",
+    "priority": "medium",
+    "category": "general",
+    "organizerId": "686755e9b68de751e63904ad",
+    "createdAt": "2025-09-05T04:55:17.931Z",
+    "updatedAt": "2025-09-05T07:51:27.706Z",
+    "messages": [
+        {
+            "id": "msg_0",
+            "message": "hii",
+            "senderId": "686755e9b68de751e63904ad",
+            "senderName": "Admin",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T04:56:27.944Z",
+            "readByReceiver": false
+        },
+        {
+            "id": "msg_1",
+            "message": "fdssd",
+            "senderId": "686755e9b68de751e63904ad",
+            "senderName": "Admin",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T05:29:41.033Z",
+            "readByReceiver": false
+        },
+        {
+            "id": "msg_2",
+            "message": "fsdfsdfsdfs",
+            "senderId": "686755e9b68de751e63904ad",
+            "senderName": "Admin",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T05:39:23.652Z",
+            "readByReceiver": false
+        },
+        {
+            "id": "msg_3",
+            "message": "daddsasa",
+            "senderId": "686755e9b68de751e63904ad",
+            "senderName": "Admin",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T06:37:42.924Z",
+            "readByReceiver": false
+        },
+        {
+            "id": "msg_4",
+            "message": "Ok got it ",
+            "senderId": "686755e9b68de751e63904ad",
+            "senderName": "Admin",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T06:38:02.377Z",
+            "readByReceiver": false
+        },
+        {
+            "id": "msg_5",
+            "message": "dfsdfsd",
+            "senderId": "68ac44ecec445d974e3b6129",
+            "senderName": "Admin User",
+            "senderType": "admin",
+            "createdAt": "2025-09-05T07:51:27.706Z",
+            "readByReceiver": false
+        }
+    ],
+    "lastMessageAt": "2025-09-05T07:51:27.706Z",
+    "id": "68ba6d351132a1ba238baab0",
+    "title": "I am fecing issue to create event",
+    "organizerEmail": "jeetu.mj12@gmail.com",
+    "organizerName": "Unknown Organizer",
+    "status": "open",
+    "ticketNumber": "ST-238baab0",
+    "messageCount": 6
+}

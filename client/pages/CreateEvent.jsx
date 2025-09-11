@@ -382,6 +382,10 @@ export default function CreateEvent() {
           earlyBirdEndDate: ticket.earlyBirdEndDate || "",
           creditPrice: ticket.creditPrice || null,
           displayPrice: ticket.displayPrice || ticket.price || 0,
+          // Combo ticket fields - THIS WAS MISSING!
+          comboTitle: ticket.comboTitle || null,
+          comboTickets: Array.isArray(ticket.comboTickets) ? ticket.comboTickets : [],
+          comboDiscount: ticket.comboDiscount || null,
         })),
         totalRevenue: 0,
         totalTicketsSold: 0,
@@ -1101,7 +1105,8 @@ export default function CreateEvent() {
         isOpen={ticketModalOpen}
         onClose={() => setTicketModalOpen(false)}
         onSave={handleTicketSave}
-        ticket={editingTicket}
+        editingTicket={editingTicket}
+        existingTickets={tickets || []}
       />
     </div>
   );

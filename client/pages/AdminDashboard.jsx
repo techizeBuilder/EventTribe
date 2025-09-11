@@ -12,10 +12,12 @@ import {
   FiMail,
   FiShield,
   FiTrendingUp,
-  FiActivity
+  FiActivity,
+  FiMessageCircle
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation, Outlet, Link } from "react-router-dom";
+import { checkAdminAuth } from "../utils/adminAuth";
 
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -25,27 +27,11 @@ export default function AdminDashboard() {
 
   // Check admin authentication on mount
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
-    const user = localStorage.getItem("adminUser");
-    
-    if (!token || !user) {
-      toast.error("Admin authentication required");
-      navigate("/admin-login");
-      return;
-    }
-    
-    try {
-      const userData = JSON.parse(user);
-      if (!['admin', 'super_admin'].includes(userData.role)) {
-        toast.error("Admin access required");
-        navigate("/admin-login");
-        return;
-      }
+    const userData = checkAdminAuth();
+    if (userData) {
       setAdminUser(userData);
-    } catch (error) {
-      toast.error("Invalid admin session");
-      navigate("/admin-login");
     }
+    // If checkAdminAuth returns null, it handles the redirect and toast
   }, [navigate]);
 
   const handleLogout = () => {
@@ -59,6 +45,8 @@ export default function AdminDashboard() {
     { id: "overview", label: "Overview", icon: FiActivity, path: "/admin/dashboard" },
     { id: "users", label: "Users Management", icon: FiUsers, path: "/admin/dashboard/users" },
     { id: "events", label: "Events Management", icon: FiCalendar, path: "/admin/dashboard/events" },
+    { id: "payouts", label: "Payout Management", icon: FiDollarSign, path: "/admin/dashboard/payouts" },
+    { id: "support", label: "Support Center", icon: FiMessageCircle, path: "/admin/dashboard/support" },
     { id: "analytics", label: "Analytics", icon: FiBarChart, path: "/admin/dashboard/analytics" },
     { id: "settings", label: "Settings", icon: FiSettings, path: "/admin/dashboard/settings" },
   ];
@@ -68,6 +56,8 @@ export default function AdminDashboard() {
     if (path === "/admin/dashboard") return "overview";
     if (path.includes("/users") || path.includes("/earnings")) return "users";
     if (path.includes("/events")) return "events";
+    if (path.includes("/payouts")) return "payouts";
+    if (path.includes("/support")) return "support";
     if (path.includes("/analytics")) return "analytics";
     if (path.includes("/settings")) return "settings";
     return "overview";

@@ -31,11 +31,11 @@ export default function Analytics() {
     try {
       setLoading(true);
       const params = new URLSearchParams();
-      
+
       if (selectedEvent !== 'all') {
         params.append('eventId', selectedEvent);
       }
-      
+
       if (dateRange !== 'all') {
         const endDate = new Date();
         const startDate = new Date();
@@ -249,11 +249,10 @@ export default function Analytics() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-400'
-                    : 'border-transparent text-gray-500 hover:text-gray-300'
-                }`}
+                className={`flex items-center gap-2 py-4 px-2 border-b-2 font-medium text-xs sm:text-sm transition-colors whitespace-nowrap ${activeTab === tab.id
+                  ? 'border-blue-500 text-blue-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+                  }`}
               >
                 <tab.icon className="w-4 h-4" />
                 <span className="hidden sm:inline">{tab.label}</span>
@@ -315,8 +314,8 @@ export default function Analytics() {
                         <span className="text-white font-semibold">{country.percentage}%</span>
                       </div>
                       <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full" 
+                        <div
+                          className="bg-blue-500 h-2 rounded-full"
                           style={{ width: `${country.percentage}%` }}
                         ></div>
                       </div>
@@ -333,7 +332,7 @@ export default function Analytics() {
           {activeTab === 'traffic' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-white">Traffic Analytics</h3>
-              
+
               {/* Traffic Chart Placeholder */}
               <div className="h-64 bg-gray-800 rounded-lg flex items-center justify-center">
                 <div className="text-center">
@@ -366,7 +365,7 @@ export default function Analytics() {
           {activeTab === 'sales' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-white">Sales Analytics</h3>
-              
+
               {/* Sales Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-800 rounded-lg p-4">
@@ -421,7 +420,7 @@ export default function Analytics() {
           {activeTab === 'engagement' && (
             <div className="space-y-6">
               <h3 className="text-lg font-semibold text-white">Engagement Analytics</h3>
-              
+
               {/* Engagement Metrics */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-gray-800 rounded-lg p-4">

@@ -120,6 +120,10 @@ export default function EditEvent() {
           earlyBirdPrice: ticket.earlyBirdPrice || '',
           earlyBirdEndDate: ticket.earlyBirdEndDate || '',
           creditPrice: ticket.creditPrice || '',
+          // Combo ticket fields
+          comboTitle: ticket.comboTitle || '',
+          comboTickets: ticket.comboTickets || '',
+          comboDiscount: ticket.comboDiscount || '',
         }));
         setTickets(existingTickets);
       }
@@ -336,6 +340,10 @@ export default function EditEvent() {
           displayPrice: ticket.displayPrice || ticket.price || 0,
           maxCartQty: ticket.maxCartQty || 10,
           availability: ticket.availability || "Available",
+          // Combo ticket fields - THIS WAS MISSING!
+          comboTitle: ticket.comboTitle || null,
+          comboTickets: Array.isArray(ticket.comboTickets) ? ticket.comboTickets : [],
+          comboDiscount: ticket.comboDiscount || null,
         })) : [],
       };
 
@@ -835,6 +843,7 @@ export default function EditEvent() {
         onClose={() => setTicketModalOpen(false)}
         onSave={handleTicketSave}
         editingTicket={editingTicket}
+        existingTickets={tickets || []}
       />
     </div>
   );

@@ -17,7 +17,7 @@ async function connectMongoDB() {
     await client.connect();
     const db = client.db("express_react_app");
     const users = db.collection("users");
-    
+
     mongoStorage = {
       async getAllUsers() {
         return await users.find({}).toArray();
@@ -27,7 +27,7 @@ async function connectMongoDB() {
         return { totalUsers: count };
       }
     };
-    
+
     console.log('[MongoDB] Connected successfully');
     return true;
   } catch (error) {
@@ -70,7 +70,7 @@ app.use(express.static('public'));
 // Start server
 async function startServer() {
   await connectMongoDB();
-  
+
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Server] Running on port ${PORT}`);

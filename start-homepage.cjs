@@ -13,12 +13,12 @@ async function connectMongoDB() {
     await client.connect();
     const db = client.db("express_react_app");
     const users = db.collection("users");
-    
+
     mongoStorage = {
       async getAllUsers() { return await users.find({}).toArray(); },
       async getStats() { return { totalUsers: await users.countDocuments() }; }
     };
-    
+
     console.log('[MongoDB] Connected successfully');
     return true;
   } catch (error) {

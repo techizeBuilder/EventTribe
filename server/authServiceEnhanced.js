@@ -6,6 +6,10 @@ import { otpService } from "./services/otpService.js";
 import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
 
 // Simple login notification function
 async function sendLoginNotificationEmail(user) {

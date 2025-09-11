@@ -135,16 +135,16 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
           const bookingData = await saveResponse.json();
 
           if (bookingData.success) {
-            toast.success("Payment successful! All tickets confirmed.");
-            clearCart();
+            // Clear cart and wait for it to complete
+            await clearCart();
+            console.log('Cart cleared after payment, calling onSuccess');
             onSuccess({ ...paymentIntent, bookings: bookingData.bookings });
           } else {
             throw new Error("Failed to save bookings");
           }
         } catch (bookingError) {
           console.error("Booking save error:", bookingError);
-
-          clearCart();
+          // Don't clear cart twice and don't show duplicate toast
           onSuccess(paymentIntent);
         }
       }
@@ -298,9 +298,7 @@ export default function MultiEventPaymentModal({ isOpen, onClose }) {
     console.log("Payment successful:", paymentResult);
     toast.success("Payment successful! All tickets confirmed.");
 
-    // Clear the cart after successful payment
-    clearCart();
-
+    // Cart is already cleared in the payment form, don't clear again
     onClose();
   };
 

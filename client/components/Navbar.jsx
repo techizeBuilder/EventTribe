@@ -87,7 +87,7 @@ export default function Navbar() {
                     <span className="relative z-10">{item.label}</span>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-slate-600/20 to-slate-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      layoutId="navbar-hover"
+                      layoutId={`navbar-hover-${item.id}`}
                     />
                     <motion.div
                       className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-slate-400 to-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-300"
@@ -144,7 +144,7 @@ export default function Navbar() {
                       <span className="relative z-10">My Tickets</span>
                       <motion.div
                         className="absolute inset-0 bg-gradient-to-r from-slate-600/20 to-slate-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        layoutId="navbar-hover"
+                        layoutId="attendee-dashboard-hover"
                       />
                       <motion.div
                         className="absolute bottom-0 left-0 h-0.5 bg-gradient-to-r from-slate-400 to-slate-300 opacity-0 group-hover:opacity-100 transition-all duration-300"
@@ -317,7 +317,7 @@ export default function Navbar() {
                     </span>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-slate-600/10 to-slate-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      layoutId="mobile-hover"
+                      layoutId={`mobile-hover-${item.id}`}
                     />
                   </Link>
                 </motion.div>
@@ -326,6 +326,21 @@ export default function Navbar() {
               {/* Auth or User Actions */}
               {isAuthenticated ? (
                 <div className="space-y-2 pt-2 border-t border-slate-700">
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    whileHover={{ scale: 1.02, x: 4 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <Link
+                      to="/attendee-dashboard"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="flex items-center space-x-3 px-4 py-3 text-base font-semibold text-slate-300 hover:text-white hover:bg-slate-800/70 rounded-xl transition-all duration-300 w-full text-left"
+                    >
+                      <FiUser className="w-5 h-5" />
+                      <span>My Tickets</span>
+                    </Link>
+                  </motion.div>
                   <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -376,7 +391,7 @@ export default function Navbar() {
                       </span>
                       <motion.div
                         className="absolute inset-0 bg-gradient-to-r from-slate-600/10 to-slate-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        layoutId="mobile-hover"
+                        layoutId={`mobile-auth-hover-${item.id}`}
                       />
                     </Link>
                   </motion.div>

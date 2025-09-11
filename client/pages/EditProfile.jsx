@@ -1,19 +1,39 @@
 
-import { useState } from "react";
-import { FiCamera, FiUpload, FiSave, FiArrowLeft, FiX } from "react-icons/fi";
+import { useState, useEffect } from "react";
+import { FiSave, FiArrowLeft, FiX } from "react-icons/fi";
 import { Link } from "react-router-dom";
+import { toast } from 'react-hot-toast';
+import { useSelector } from 'react-redux';
 
 export default function EditProfile() {
+  const { user } = useSelector((state) => state.auth);
   const [profileForm, setProfileForm] = useState({
-    firstName: "Farhan",
-    lastName: "Akhtar",
+    firstName: "",
+    lastName: "",
     contactNumber: "",
     location: "",
-    organizationName: "Farhan's Organization",
-    email: "akhtarfarhan281@gmail.com",
+    organizationName: "",
+    email: "",
     instagramUsername: "",
     profileColor: "#3B82F6",
   });
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load user data on component mount
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        contactNumber: user.contactNumber || "",
+        location: user.location || "",
+        organizationName: user.organizationName || "",
+        email: user.email || "",
+        instagramUsername: user.instagramUsername || "",
+        profileColor: user.profileColor || "#3B82F6",
+      });
+    }
+  }, [user]);
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
@@ -38,9 +58,42 @@ export default function EditProfile() {
     }));
   };
 
-  const handleUpdateProfile = () => {
-    console.log("Updating profile:", profileForm);
-    // Add your profile update logic here
+  const handleUpdateProfile = async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Please log in to update your profile');
+        return;
+      }
+
+      const response = await fetch('/api/organizer/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(profileForm)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Profile updated successfully!');
+        // Optionally update the Redux store with new user data
+        // dispatch(updateUser(data.user));
+      } else {
+        toast.error(data.message || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Profile update error:', error);
+      toast.error('Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handlePasswordUpdate = () => {
@@ -94,21 +147,13 @@ export default function EditProfile() {
                   Profile Picture
                 </h3>
                 <div className="flex flex-col items-center space-y-4">
-                  <div className="relative group">
+                  <div className="relative">
                     <div
-                      className="w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white cursor-pointer transition-all duration-200 group-hover:scale-105"
+                      className="w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white"
                       style={{ backgroundColor: profileForm.profileColor }}
                     >
                       {profileForm.firstName.charAt(0)}
-                      <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <FiCamera className="w-8 h-8 text-white" />
-                      </div>
                     </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                    />
                   </div>
                   <div className="w-full">
                     <label className="block text-gray-400 text-sm mb-2">
@@ -252,11 +297,22 @@ export default function EditProfile() {
 
                   <div className="flex justify-end pt-6">
                     <button
-                      type="submit"
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                      type="button"
+                      onClick={handleUpdateProfile}
+                      disabled={isLoading}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed text-white px-8 py-3 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
                     >
-                      <FiSave className="w-4 h-4" />
-                      <span>Update Profile</span>
+                      {isLoading ? (
+                        <>
+                          <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                          <span>Updating...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiSave className="w-4 h-4" />
+                          <span>Update Profile</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </form>

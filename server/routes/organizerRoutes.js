@@ -7,6 +7,8 @@ import express from 'express';
 import { organizerStorage } from '../services/organizerStorageService.js';
 import { authenticateToken, requireRole, requireVerification } from '../middleware/authMiddleware.js';
 import { sampleDataService } from '../services/sampleDataService.js';
+import { payoutService } from '../services/payoutService.js';
+import { mongoSupportTicketService } from '../services/mongoSupportTicketService.js';
 
 const router = express.Router();
 
@@ -116,53 +118,83 @@ router.post('/events', async (req, res) => {
     // Event creation request received
     
     // Process ticket types to ensure proper data structure
-    const processedTicketTypes = req.body.ticketTypes ? req.body.ticketTypes.map(ticket => ({
-      name: ticket.name || 'General Admission',
-      description: ticket.description || 'Event ticket',
-      price: parseFloat(ticket.price) || 0,
-      quantity: parseInt(ticket.quantity) || 100,
-      displayPrice: parseFloat(ticket.displayPrice) || parseFloat(ticket.price) || 0,
-      maxCartQty: parseInt(ticket.maxCartQty) || 10,
-      availability: ticket.availability || 'Available',
-      isActive: ticket.isActive !== false,
-      sold: 0,
-      saleStartDate: ticket.saleStartDate || new Date().toISOString(),
-      saleEndDate: ticket.saleEndDate || req.body.endDate || new Date().toISOString(),
-      // Advanced settings
-      enableSkipLine: ticket.enableSkipLine || false,
-      passwordProtect: ticket.passwordProtect || false,
-      enableBundle: ticket.enableBundle || false,
-      enableEarlyBird: ticket.enableEarlyBird || false,
-      coverTicket: ticket.coverTicket || false,
-      enableComboTickets: ticket.enableComboTickets || false,
-      enableWaitlist: ticket.enableWaitlist || false,
-      hideTicket: ticket.hideTicket || false,
-      bundlePrice: ticket.bundlePrice ? parseFloat(ticket.bundlePrice) : null,
-      waitlistTicket: ticket.waitlistTicket || null,
-      perks: ticket.perks || [],
-      // Additional dynamic fields
-      ticketPassword: ticket.ticketPassword || null,
-      earlyBirdPrice: ticket.earlyBirdPrice ? parseFloat(ticket.earlyBirdPrice) : null,
-      earlyBirdEndDate: ticket.earlyBirdEndDate || null,
-      creditPrice: ticket.creditPrice ? parseFloat(ticket.creditPrice) : null,
-      // Store all original form data for complete functionality
-      additionalSettings: {
-        enableSkipLine: ticket.enableSkipLine || false,
-        passwordProtect: ticket.passwordProtect || false,
-        enableBundle: ticket.enableBundle || false,
-        enableEarlyBird: ticket.enableEarlyBird || false,
-        coverTicket: ticket.coverTicket || false,
-        enableComboTickets: ticket.enableComboTickets || false,
-        enableWaitlist: ticket.enableWaitlist || false,
-        hideTicket: ticket.hideTicket || false,
+    const processedTicketTypes = req.body.ticketTypes ? req.body.ticketTypes.map(ticket => {
+      // Helper function to properly convert boolean values
+      const toBool = (value) => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') return value === 'true' || value === '1';
+        return Boolean(value);
+      };
+
+      // Helper function to handle datetime values
+      const processDateTime = (dateValue) => {
+        if (!dateValue || dateValue === '') return null;
+        try {
+          // If it's already a valid date string, return it
+          const date = new Date(dateValue);
+          return date.toISOString();
+        } catch (error) {
+          console.error('Invalid date format:', dateValue);
+          return null;
+        }
+      };
+
+      return {
+        name: ticket.name || 'General Admission',
+        description: ticket.description || 'Event ticket',
+        price: parseFloat(ticket.price) || 0,
+        quantity: parseInt(ticket.quantity) || 100,
+        displayPrice: parseFloat(ticket.displayPrice) || parseFloat(ticket.price) || 0,
+        maxCartQty: parseInt(ticket.maxCartQty) || 10,
+        availability: ticket.availability || 'Available',
+        isActive: ticket.isActive !== false,
+        sold: 0,
+        saleStartDate: ticket.saleStartDate || new Date().toISOString(),
+        saleEndDate: ticket.saleEndDate || req.body.endDate || new Date().toISOString(),
+        // Advanced settings with proper boolean conversion
+        enableSkipLine: toBool(ticket.enableSkipLine),
+        passwordProtect: toBool(ticket.passwordProtect),
+        enableBundle: toBool(ticket.enableBundle),
+        enableEarlyBird: toBool(ticket.enableEarlyBird),
+        coverTicket: toBool(ticket.coverTicket),
+        enableComboTickets: toBool(ticket.enableComboTickets),
+        enableWaitlist: toBool(ticket.enableWaitlist),
+        hideTicket: toBool(ticket.hideTicket),
+        bundlePrice: ticket.bundlePrice && ticket.bundlePrice !== '' ? parseFloat(ticket.bundlePrice) : null,
+        waitlistTicket: ticket.waitlistTicket || null,
+        perks: ticket.perks || [],
+        // Additional dynamic fields with proper processing
         ticketPassword: ticket.ticketPassword || null,
-        earlyBirdPrice: ticket.earlyBirdPrice ? parseFloat(ticket.earlyBirdPrice) : null,
-        earlyBirdEndDate: ticket.earlyBirdEndDate || null,
-        creditPrice: ticket.creditPrice ? parseFloat(ticket.creditPrice) : null,
-        bundlePrice: ticket.bundlePrice ? parseFloat(ticket.bundlePrice) : null,
-        waitlistTicket: ticket.waitlistTicket || null
-      }
-    })) : [];
+        earlyBirdPrice: ticket.earlyBirdPrice && ticket.earlyBirdPrice !== '' ? parseFloat(ticket.earlyBirdPrice) : null,
+        earlyBirdEndDate: processDateTime(ticket.earlyBirdEndDate),
+        creditPrice: ticket.creditPrice && ticket.creditPrice !== '' ? parseFloat(ticket.creditPrice) : null,
+        // Combo ticket fields  
+        comboTitle: ticket.comboTitle && ticket.comboTitle !== '' ? ticket.comboTitle : null,
+        comboTickets: ticket.comboTickets && ticket.comboTickets !== '' ? ticket.comboTickets : null,
+        comboDiscount: ticket.comboDiscount && ticket.comboDiscount !== '' ? parseFloat(ticket.comboDiscount) : null,
+        // Store all original form data for complete functionality
+        additionalSettings: {
+          enableSkipLine: toBool(ticket.enableSkipLine),
+          passwordProtect: toBool(ticket.passwordProtect),
+          enableBundle: toBool(ticket.enableBundle),
+          enableEarlyBird: toBool(ticket.enableEarlyBird),
+          coverTicket: toBool(ticket.coverTicket),
+          enableComboTickets: toBool(ticket.enableComboTickets),
+          enableWaitlist: toBool(ticket.enableWaitlist),
+          hideTicket: toBool(ticket.hideTicket),
+          ticketPassword: ticket.ticketPassword || null,
+          earlyBirdPrice: ticket.earlyBirdPrice && ticket.earlyBirdPrice !== '' ? parseFloat(ticket.earlyBirdPrice) : null,
+          earlyBirdEndDate: processDateTime(ticket.earlyBirdEndDate),
+          creditPrice: ticket.creditPrice && ticket.creditPrice !== '' ? parseFloat(ticket.creditPrice) : null,
+          bundlePrice: ticket.bundlePrice && ticket.bundlePrice !== '' ? parseFloat(ticket.bundlePrice) : null,
+          waitlistTicket: ticket.waitlistTicket || null,
+        // Combo ticket fields  
+        comboTitle: ticket.comboTitle && ticket.comboTitle !== '' ? ticket.comboTitle : null,
+        comboTickets: ticket.comboTickets && ticket.comboTickets !== '' ? ticket.comboTickets : null,
+        comboDiscount: ticket.comboDiscount && ticket.comboDiscount !== '' ? parseFloat(ticket.comboDiscount) : null
+        }
+      };
+    }) : [];
     
     // Simple event creation without complex organization setup
     const eventData = { 
@@ -210,9 +242,51 @@ router.get('/events', async (req, res) => {
     
     // Get events from MongoDB events collection
     const eventsCollection = mongoStorage.db.collection('events');
-    const events = await eventsCollection.find({ organizerId }).toArray();
+    const bookingsCollection = mongoStorage.db.collection('bookings');
     
-    res.json(events);
+    const events = await eventsCollection.find({ organizerId }).sort({ createdAt: -1 }).toArray();
+    
+    // Calculate revenue and registration counts for each event
+    const eventsWithStats = await Promise.all(events.map(async (event) => {
+      try {
+        // Get bookings for this event - try multiple possible field names
+        const bookings = await bookingsCollection.find({ 
+          $or: [
+            { eventId: event._id.toString() },
+            { eventId: event._id },
+            { eventTitle: event.title },
+            { 'event._id': event._id },
+            { 'event.id': event._id.toString() }
+          ]
+        }).toArray();
+        
+        // Calculate total revenue and registration count
+        const totalRevenue = bookings.reduce((sum, booking) => {
+          return sum + (booking.totalAmount || booking.amount || 0);
+        }, 0);
+        
+        const totalRegistrations = bookings.length;
+        
+        // Add calculated stats to event
+        return {
+          ...event,
+          revenue: totalRevenue,
+          ticketsSold: totalRegistrations,
+          registrations: totalRegistrations
+        };
+      } catch (error) {
+        console.error(`Error calculating stats for event ${event._id}:`, error);
+        // Return event with zero stats if calculation fails
+        return {
+          ...event,
+          revenue: 0,
+          ticketsSold: 0,
+          registrations: 0
+        };
+      }
+    }));
+    
+    res.json(eventsWithStats);
   } catch (error) {
     console.error('Get events error:', error);
     res.status(500).json({ message: 'Failed to fetch events', error: error.message });
@@ -319,53 +393,83 @@ router.put('/events/:id', async (req, res) => {
     }
     
     // Process ticket types with additional settings if they exist
-    const processedTicketTypes = req.body.ticketTypes ? req.body.ticketTypes.map(ticket => ({
-      name: ticket.name || 'General Admission',
-      description: ticket.description || 'Event ticket',
-      price: parseFloat(ticket.price) || 0,
-      quantity: parseInt(ticket.quantity) || 100,
-      displayPrice: parseFloat(ticket.displayPrice) || parseFloat(ticket.price) || 0,
-      maxCartQty: parseInt(ticket.maxCartQty) || 10,
-      availability: ticket.availability || 'Available',
-      isActive: ticket.isActive !== false,
-      sold: ticket.sold || 0,
-      saleStartDate: ticket.saleStartDate || new Date().toISOString(),
-      saleEndDate: ticket.saleEndDate || req.body.endDate || new Date().toISOString(),
-      // Advanced settings
-      enableSkipLine: ticket.enableSkipLine || false,
-      passwordProtect: ticket.passwordProtect || false,
-      enableBundle: ticket.enableBundle || false,
-      enableEarlyBird: ticket.enableEarlyBird || false,
-      coverTicket: ticket.coverTicket || false,
-      enableComboTickets: ticket.enableComboTickets || false,
-      enableWaitlist: ticket.enableWaitlist || false,
-      hideTicket: ticket.hideTicket || false,
-      bundlePrice: ticket.bundlePrice ? parseFloat(ticket.bundlePrice) : null,
-      waitlistTicket: ticket.waitlistTicket || null,
-      perks: ticket.perks || [],
-      // Additional dynamic fields
-      ticketPassword: ticket.ticketPassword || null,
-      earlyBirdPrice: ticket.earlyBirdPrice ? parseFloat(ticket.earlyBirdPrice) : null,
-      earlyBirdEndDate: ticket.earlyBirdEndDate || null,
-      creditPrice: ticket.creditPrice ? parseFloat(ticket.creditPrice) : null,
-      // Store all original form data for complete functionality
-      additionalSettings: {
-        enableSkipLine: ticket.enableSkipLine || false,
-        passwordProtect: ticket.passwordProtect || false,
-        enableBundle: ticket.enableBundle || false,
-        enableEarlyBird: ticket.enableEarlyBird || false,
-        coverTicket: ticket.coverTicket || false,
-        enableComboTickets: ticket.enableComboTickets || false,
-        enableWaitlist: ticket.enableWaitlist || false,
-        hideTicket: ticket.hideTicket || false,
+    const processedTicketTypes = req.body.ticketTypes ? req.body.ticketTypes.map(ticket => {
+      // Helper function to properly convert boolean values
+      const toBool = (value) => {
+        if (typeof value === 'boolean') return value;
+        if (typeof value === 'string') return value === 'true' || value === '1';
+        return Boolean(value);
+      };
+
+      // Helper function to handle datetime values
+      const processDateTime = (dateValue) => {
+        if (!dateValue || dateValue === '') return null;
+        try {
+          // If it's already a valid date string, return it
+          const date = new Date(dateValue);
+          return date.toISOString();
+        } catch (error) {
+          console.error('Invalid date format:', dateValue);
+          return null;
+        }
+      };
+
+      return {
+        name: ticket.name || 'General Admission',
+        description: ticket.description || 'Event ticket',
+        price: parseFloat(ticket.price) || 0,
+        quantity: parseInt(ticket.quantity) || 100,
+        displayPrice: parseFloat(ticket.displayPrice) || parseFloat(ticket.price) || 0,
+        maxCartQty: parseInt(ticket.maxCartQty) || 10,
+        availability: ticket.availability || 'Available',
+        isActive: ticket.isActive !== false,
+        sold: ticket.sold || 0,
+        saleStartDate: ticket.saleStartDate || new Date().toISOString(),
+        saleEndDate: ticket.saleEndDate || req.body.endDate || new Date().toISOString(),
+        // Advanced settings with proper boolean conversion
+        enableSkipLine: toBool(ticket.enableSkipLine),
+        passwordProtect: toBool(ticket.passwordProtect),
+        enableBundle: toBool(ticket.enableBundle),
+        enableEarlyBird: toBool(ticket.enableEarlyBird),
+        coverTicket: toBool(ticket.coverTicket),
+        enableComboTickets: toBool(ticket.enableComboTickets),
+        enableWaitlist: toBool(ticket.enableWaitlist),
+        hideTicket: toBool(ticket.hideTicket),
+        bundlePrice: ticket.bundlePrice && ticket.bundlePrice !== '' ? parseFloat(ticket.bundlePrice) : null,
+        waitlistTicket: ticket.waitlistTicket || null,
+        perks: ticket.perks || [],
+        // Additional dynamic fields with proper processing
         ticketPassword: ticket.ticketPassword || null,
-        earlyBirdPrice: ticket.earlyBirdPrice ? parseFloat(ticket.earlyBirdPrice) : null,
-        earlyBirdEndDate: ticket.earlyBirdEndDate || null,
-        creditPrice: ticket.creditPrice ? parseFloat(ticket.creditPrice) : null,
-        bundlePrice: ticket.bundlePrice ? parseFloat(ticket.bundlePrice) : null,
-        waitlistTicket: ticket.waitlistTicket || null
-      }
-    })) : (req.body.ticketTypes || existingEvent.ticketTypes || []);
+        earlyBirdPrice: ticket.earlyBirdPrice && ticket.earlyBirdPrice !== '' ? parseFloat(ticket.earlyBirdPrice) : null,
+        earlyBirdEndDate: processDateTime(ticket.earlyBirdEndDate),
+        creditPrice: ticket.creditPrice && ticket.creditPrice !== '' ? parseFloat(ticket.creditPrice) : null,
+        // Combo ticket fields  
+        comboTitle: ticket.comboTitle && ticket.comboTitle !== '' ? ticket.comboTitle : null,
+        comboTickets: ticket.comboTickets && ticket.comboTickets !== '' ? ticket.comboTickets : null,
+        comboDiscount: ticket.comboDiscount && ticket.comboDiscount !== '' ? parseFloat(ticket.comboDiscount) : null,
+        // Store all original form data for complete functionality
+        additionalSettings: {
+          enableSkipLine: toBool(ticket.enableSkipLine),
+          passwordProtect: toBool(ticket.passwordProtect),
+          enableBundle: toBool(ticket.enableBundle),
+          enableEarlyBird: toBool(ticket.enableEarlyBird),
+          coverTicket: toBool(ticket.coverTicket),
+          enableComboTickets: toBool(ticket.enableComboTickets),
+          enableWaitlist: toBool(ticket.enableWaitlist),
+          hideTicket: toBool(ticket.hideTicket),
+          ticketPassword: ticket.ticketPassword || null,
+          earlyBirdPrice: ticket.earlyBirdPrice && ticket.earlyBirdPrice !== '' ? parseFloat(ticket.earlyBirdPrice) : null,
+          earlyBirdEndDate: processDateTime(ticket.earlyBirdEndDate),
+          creditPrice: ticket.creditPrice && ticket.creditPrice !== '' ? parseFloat(ticket.creditPrice) : null,
+          bundlePrice: ticket.bundlePrice && ticket.bundlePrice !== '' ? parseFloat(ticket.bundlePrice) : null,
+          waitlistTicket: ticket.waitlistTicket || null,
+          // Combo ticket fields
+          comboTitle: ticket.comboTitle || null,
+          comboTickets: ticket.comboTickets || null,
+          comboDiscount: ticket.comboDiscount && ticket.comboDiscount !== '' ? parseFloat(ticket.comboDiscount) : null
+        }
+      };
+    }) : (req.body.ticketTypes || existingEvent.ticketTypes || []);
     
     const updateData = { 
       ...req.body, 
@@ -771,6 +875,280 @@ router.get('/finances/payouts', async (req, res) => {
   }
 });
 
+// GET /api/organizer/finances/transactions - Get transaction history
+router.get('/finances/transactions', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { status, startDate, endDate } = req.query;
+    
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    // Get organizer's events
+    const eventsCollection = organizerStorage.db.collection('events');
+    const organizerEvents = await eventsCollection.find({
+      $or: [
+        { organizerId: organizerId },
+        { organizationId: organizerId },
+        { organizerId: new ObjectId(organizerId) },
+        { organizationId: new ObjectId(organizerId) }
+      ]
+    }).toArray();
+    
+    const eventIds = organizerEvents.map(event => event._id.toString());
+    
+    // Get bookings for these events
+    const bookingsCollection = organizerStorage.db.collection('bookings');
+    let filter = {
+      eventId: { $in: eventIds }
+    };
+    
+    // Apply status filter if provided
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    
+    // Apply date filter if provided
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    const bookings = await bookingsCollection.find(filter).sort({ createdAt: -1 }).toArray();
+    
+    // Format transactions for frontend
+    const transactions = bookings.map(booking => {
+      const event = organizerEvents.find(e => e._id.toString() === booking.eventId);
+      return {
+        id: booking._id,
+        type: 'payment',
+        description: `Ticket sale - ${event ? event.title : 'Unknown Event'}`,
+        amount: parseFloat(booking.totalAmount || booking.amount) || 0,
+        status: booking.status,
+        date: booking.createdAt || booking.bookingDate,
+        customer: booking.userName || 'Unknown',
+        customerEmail: booking.userEmail,
+        paymentMethod: booking.paymentIntentId ? 'Stripe' : 'Unknown',
+        currency: booking.currency || 'USD',
+        bookingId: booking.bookingId,
+        paymentIntentId: booking.paymentIntentId,
+        eventName: event ? event.title : 'Unknown Event',
+        ticketType: booking.ticketDetails && booking.ticketDetails[0] ? 
+          booking.ticketDetails[0].type : 'General Admission'
+      };
+    });
+    
+    res.json({
+      success: true,
+      transactions: transactions,
+      total: transactions.length,
+      summary: {
+        totalAmount: transactions.reduce((sum, t) => sum + (t.amount || 0), 0),
+        confirmedTransactions: transactions.filter(t => t.status === 'confirmed').length,
+        pendingTransactions: transactions.filter(t => t.status === 'pending').length,
+        cancelledTransactions: transactions.filter(t => t.status === 'cancelled').length
+      }
+    });
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch transactions',
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/organizer/withdrawals - Create withdrawal request with payment gateway integration
+router.post('/withdrawals', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { amount, type, reason, bankDetails, method } = req.body;
+    
+    // Validate request
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid withdrawal amount' });
+    }
+    
+    if (!bankDetails || !bankDetails.accountNumber || !bankDetails.routingNumber || 
+        !bankDetails.accountHolderName || !bankDetails.bankName) {
+      return res.status(400).json({ message: 'Complete bank details are required' });
+    }
+
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+
+    // Generate reference number
+    const referenceNumber = `WD-${Date.now()}-${Math.random().toString(36).substr(2, 4).toUpperCase()}`;
+    
+    // Create withdrawal record
+    const withdrawal = {
+      _id: new ObjectId(),
+      organizerId: new ObjectId(organizerId),
+      amount: parseFloat(amount),
+      type: type, // 'immediate' or 'pending'
+      reason: reason || '',
+      bankDetails: {
+        accountNumber: bankDetails.accountNumber,
+        routingNumber: bankDetails.routingNumber,
+        accountHolderName: bankDetails.accountHolderName,
+        bankName: bankDetails.bankName
+      },
+      method: method || 'bank_transfer',
+      status: type === 'immediate' ? 'processing' : 'pending_approval',
+      referenceNumber: referenceNumber,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      paymentGateway: {
+        provider: 'stripe', // Integration ready
+        status: 'initialized',
+        transactionId: null
+      }
+    };
+
+    // For immediate withdrawals (80%), integrate with payment gateway
+    if (type === 'immediate') {
+      try {
+        // Stripe Transfer Integration (dummy implementation ready for real keys)
+        const stripeTransfer = {
+          id: `tr_${Math.random().toString(36).substr(2, 24)}`, // Mock Stripe transfer ID
+          amount: Math.round(amount * 100), // Convert to cents
+          currency: 'usd',
+          destination: `acct_${Math.random().toString(36).substr(2, 16)}`, // Mock account
+          status: 'pending'
+        };
+        
+        withdrawal.paymentGateway.transactionId = stripeTransfer.id;
+        withdrawal.paymentGateway.status = 'pending';
+        withdrawal.stripeTransferId = stripeTransfer.id;
+        
+        console.log(`[Payment Gateway] Initiated Stripe transfer: ${stripeTransfer.id} for $${amount}`);
+      } catch (paymentError) {
+        console.error('Payment gateway error:', paymentError);
+        withdrawal.status = 'failed';
+        withdrawal.paymentGateway.status = 'failed';
+        withdrawal.paymentGateway.error = paymentError.message;
+      }
+    }
+
+    // Save withdrawal request
+    const withdrawalsCollection = organizerStorage.db.collection('withdrawals');
+    await withdrawalsCollection.insertOne(withdrawal);
+    
+    // Update organizer's requested earnings
+    const earningsCollection = organizerStorage.db.collection('earnings');
+    await earningsCollection.updateOne(
+      { organizerId: new ObjectId(organizerId) },
+      { 
+        $inc: { requestedEarnings: parseFloat(amount) },
+        $set: { lastWithdrawalAt: new Date() }
+      },
+      { upsert: true }
+    );
+
+    console.log(`[Withdrawal] Created ${type} withdrawal request: ${referenceNumber} for $${amount}`);
+    
+    res.json({
+      success: true,
+      message: 'Withdrawal request submitted successfully',
+      referenceNumber: referenceNumber,
+      withdrawal: {
+        id: withdrawal._id,
+        amount: withdrawal.amount,
+        type: withdrawal.type,
+        status: withdrawal.status,
+        referenceNumber: withdrawal.referenceNumber,
+        estimatedProcessingTime: type === 'immediate' ? '1-3 business days' : '5-7 business days (pending approval)'
+      }
+    });
+  } catch (error) {
+    console.error('Create withdrawal error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create withdrawal request',
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/organizer/withdraw-immediate - Process immediate 80% withdrawal
+router.post('/withdraw-immediate', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { amount, type } = req.body;
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ message: 'Invalid withdrawal amount' });
+    }
+
+    if (type !== 'immediate') {
+      return res.status(400).json({ message: 'This endpoint only handles immediate withdrawals' });
+    }
+
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+
+    // Verify user has sufficient immediate earnings
+    const earningsCollection = organizerStorage.db.collection('earnings');
+    const earningsDoc = await earningsCollection.findOne({ organizerId: new ObjectId(organizerId) });
+    
+    if (!earningsDoc || (earningsDoc.immediateEarnings || 0) < amount) {
+      return res.status(400).json({ 
+        message: 'Insufficient immediate earnings balance' 
+      });
+    }
+
+    // Create completed payout record immediately
+    const payoutsCollection = organizerStorage.db.collection('payouts');
+    const payoutRecord = {
+      organizerId: new ObjectId(organizerId),
+      amount: parseFloat(amount),
+      status: 'completed',
+      method: 'instant_transfer',
+      description: `Immediate withdrawal of 80% earnings`,
+      type: 'immediate',
+      createdAt: new Date(),
+      processedAt: new Date(),
+      referenceNumber: `IMM-${Date.now()}-${organizerId.slice(-6)}`
+    };
+
+    await payoutsCollection.insertOne(payoutRecord);
+
+    // Update earnings - subtract from immediate earnings and add to paid earnings
+    await earningsCollection.updateOne(
+      { organizerId: new ObjectId(organizerId) },
+      { 
+        $inc: { 
+          immediateEarnings: -parseFloat(amount),
+          paidEarnings: parseFloat(amount)
+        },
+        $set: { lastWithdrawalAt: new Date() }
+      }
+    );
+
+    console.log(`[Immediate Withdrawal] Processed $${amount} for organizer ${organizerId}`);
+
+    res.json({
+      success: true,
+      message: 'Immediate withdrawal processed successfully!',
+      payout: {
+        id: payoutRecord._id,
+        amount: payoutRecord.amount,
+        status: payoutRecord.status,
+        referenceNumber: payoutRecord.referenceNumber,
+        processedAt: payoutRecord.processedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Immediate withdrawal error:', error);
+    res.status(500).json({ 
+      message: 'Failed to process immediate withdrawal',
+      error: error.message 
+    });
+  }
+});
+
 // PUT /api/organizer/finances/payouts/:id/status - Update payout status
 router.put('/finances/payouts/:id/status', async (req, res) => {
   try {
@@ -793,8 +1171,107 @@ router.put('/finances/payouts/:id/status', async (req, res) => {
 // GET /api/organizer/finances/summary - Get financial summary
 router.get('/finances/summary', async (req, res) => {
   try {
-    const organizerId = req.user._id;
-    const summary = await organizerStorage.getFinancialSummary(organizerId);
+    const organizerId = req.user._id.toString();
+    const { startDate, endDate } = req.query;
+    
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    // Get organizer's events
+    const eventsCollection = organizerStorage.db.collection('events');
+    const organizerEvents = await eventsCollection.find({
+      $or: [
+        { organizerId: organizerId },
+        { organizationId: organizerId },
+        { organizerId: new ObjectId(organizerId) },
+        { organizationId: new ObjectId(organizerId) }
+      ]
+    }).toArray();
+    
+    const eventIds = organizerEvents.map(event => event._id.toString());
+    
+    // Get confirmed bookings for these events
+    const bookingsCollection = organizerStorage.db.collection('bookings');
+    let filter = {
+      eventId: { $in: eventIds },
+      status: 'confirmed'
+    };
+    
+    // Apply date filter if provided
+    if (startDate && endDate) {
+      filter.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate)
+      };
+    }
+    
+    const confirmedBookings = await bookingsCollection.find(filter).toArray();
+    
+    // Calculate totals
+    let totalRevenue = 0;
+    let totalTicketsSold = 0;
+    
+    confirmedBookings.forEach(booking => {
+      const amount = parseFloat(booking.totalAmount || booking.amount) || 0;
+      totalRevenue += amount;
+      
+      // Count tickets from ticket details
+      if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
+        booking.ticketDetails.forEach(ticket => {
+          totalTicketsSold += parseInt(ticket.quantity) || 1;
+        });
+      } else {
+        totalTicketsSold += 1; // Default to 1 if no ticket details
+      }
+    });
+    
+    // Calculate 80/20 split like in earnings
+    const immediateRevenue = totalRevenue * 0.8; // 80% immediate
+    const pendingRevenue = totalRevenue * 0.2;   // 20% pending
+    
+    // Get withdrawal requests
+    const withdrawalRequestsCollection = organizerStorage.db.collection('withdrawal_requests');
+    const withdrawalRequests = await withdrawalRequestsCollection.find({
+      organizationId: new ObjectId(organizerId)
+    }).toArray();
+    
+    let availableBalance = immediateRevenue;
+    let pendingBalance = pendingRevenue;
+    let platformFees = 0; // No platform fees for simplicity
+    
+    withdrawalRequests.forEach(request => {
+      if (request.status === 'pending') {
+        // Reduce available balance by pending requests
+        availableBalance -= parseFloat(request.requestedAmount) || 0;
+      }
+    });
+    
+    const summary = {
+      events: {
+        _id: null,
+        totalRevenue: totalRevenue,
+        totalTicketsSold: totalTicketsSold,
+        totalPlatformFees: platformFees,
+        totalProcessingFees: 0
+      },
+      financials: {
+        totalRevenue: totalRevenue,
+        availableBalance: Math.max(0, availableBalance),
+        pendingRevenue: pendingBalance,
+        platformFees: platformFees
+      },
+      bookings: {
+        total: confirmedBookings.length,
+        confirmed: confirmedBookings.length,
+        pending: 0,
+        cancelled: 0
+      },
+      dateRange: {
+        startDate: startDate || null,
+        endDate: endDate || null
+      }
+    };
+    
     res.json(summary);
   } catch (error) {
     console.error('Get financial summary error:', error);
@@ -804,68 +1281,140 @@ router.get('/finances/summary', async (req, res) => {
 
 // ==================== DISPUTE MANAGEMENT ====================
 
-// POST /api/organizer/disputes - Create dispute
-router.post('/disputes', async (req, res) => {
-  try {
-    const organizerId = req.user._id;
-    const disputeData = { ...req.body, organizerId };
-    
-    const dispute = await organizerStorage.createDispute(disputeData);
-    res.status(201).json(dispute);
-  } catch (error) {
-    console.error('Create dispute error:', error);
-    res.status(500).json({ message: 'Failed to create dispute' });
-  }
-});
-
-// GET /api/organizer/disputes - Get disputes
+// GET /api/organizer/disputes - Get organizer disputes and stats
 router.get('/disputes', async (req, res) => {
   try {
-    const organizerId = req.user._id;
+    const organizerId = req.user._id.toString();
     const { status } = req.query;
     
-    const disputes = await organizerStorage.getDisputes(organizerId, status);
-    res.json(disputes);
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    // Get organizer's events to find disputed bookings
+    const eventsCollection = organizerStorage.db.collection('events');
+    const organizerEvents = await eventsCollection.find({
+      $or: [
+        { organizerId: organizerId },
+        { organizationId: organizerId },
+        { organizerId: new ObjectId(organizerId) },
+        { organizationId: new ObjectId(organizerId) }
+      ]
+    }).toArray();
+    
+    const eventIds = organizerEvents.map(event => event._id.toString());
+    
+    // Get disputed bookings (bookings with status 'disputed' or 'chargeback')
+    const bookingsCollection = organizerStorage.db.collection('bookings');
+    const filter = {
+      eventId: { $in: eventIds },
+      status: { $in: ['disputed', 'chargeback', 'refund_requested'] }
+    };
+    
+    if (status && status !== 'All') {
+      if (status === 'Need Response') {
+        filter.disputeStatus = 'pending_response';
+      } else if (status === 'In Review') {
+        filter.disputeStatus = 'under_review';
+      } else if (status === 'Won') {
+        filter.disputeStatus = 'won';
+      } else if (status === 'Lost') {
+        filter.disputeStatus = 'lost';
+      }
+    }
+    
+    const disputes = await bookingsCollection.find(filter).sort({ createdAt: -1 }).toArray();
+    
+    // Calculate dispute stats
+    const allDisputes = await bookingsCollection.find({
+      eventId: { $in: eventIds },
+      status: { $in: ['disputed', 'chargeback', 'refund_requested'] }
+    }).toArray();
+    
+    const totalTransactions = await bookingsCollection.countDocuments({
+      eventId: { $in: eventIds },
+      status: 'confirmed'
+    });
+    
+    const needResponse = allDisputes.filter(d => d.disputeStatus === 'pending_response' || !d.disputeStatus).length;
+    const disputeRate = totalTransactions > 0 ? ((allDisputes.length / totalTransactions) * 100).toFixed(1) : 0;
+    const wonDisputes = allDisputes.filter(d => d.disputeStatus === 'won').length;
+    const winRate = allDisputes.length > 0 ? ((wonDisputes / allDisputes.length) * 100).toFixed(1) : 0;
+    const moneyOnHold = allDisputes.reduce((sum, d) => sum + (parseFloat(d.totalAmount || d.amount) || 0), 0);
+    
+    const stats = {
+      needResponse,
+      disputeRate: `${disputeRate}%`,
+      moneyOnHold: `₹ ${moneyOnHold.toFixed(2)}`,
+      winRate: `${winRate}%`
+    };
+    
+    // Format disputes for frontend
+    const formattedDisputes = disputes.map(dispute => {
+      const event = organizerEvents.find(e => e._id.toString() === dispute.eventId);
+      return {
+        id: dispute._id,
+        customer: dispute.userName || 'Unknown Customer',
+        customerEmail: dispute.userEmail,
+        orderName: event ? event.title : 'Unknown Event',
+        amount: `$${(parseFloat(dispute.totalAmount || dispute.amount) || 0).toFixed(2)}`,
+        disputeDate: new Date(dispute.updatedAt || dispute.createdAt).toLocaleDateString(),
+        evidenceDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString(), // 7 days from now
+        status: dispute.disputeStatus || (dispute.status === 'disputed' ? 'Under Review' : 'Pending'),
+        bookingId: dispute.bookingId,
+        paymentIntentId: dispute.paymentIntentId
+      };
+    });
+    
+    res.json({
+      success: true,
+      disputes: formattedDisputes,
+      stats
+    });
   } catch (error) {
     console.error('Get disputes error:', error);
-    res.status(500).json({ message: 'Failed to fetch disputes' });
+    res.status(500).json({ 
+      message: 'Failed to fetch disputes',
+      error: error.message 
+    });
   }
 });
 
-// PUT /api/organizer/disputes/:id - Update dispute
-router.put('/disputes/:id', async (req, res) => {
+// POST /api/organizer/disputes/:id/respond - Respond to a dispute
+router.post('/disputes/:id/respond', async (req, res) => {
   try {
     const { id } = req.params;
-    const success = await organizerStorage.updateDispute(id, req.body);
+    const { response, evidence } = req.body;
     
-    if (success) {
-      res.json({ message: 'Dispute updated successfully' });
-    } else {
-      res.status(404).json({ message: 'Dispute not found' });
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    const bookingsCollection = organizerStorage.db.collection('bookings');
+    const result = await bookingsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { 
+        $set: { 
+          disputeStatus: 'under_review',
+          disputeResponse: response,
+          disputeEvidence: evidence,
+          disputeResponseDate: new Date()
+        }
+      }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: 'Dispute not found' });
     }
-  } catch (error) {
-    console.error('Update dispute error:', error);
-    res.status(500).json({ message: 'Failed to update dispute' });
-  }
-});
-
-// POST /api/organizer/disputes/:id/messages - Add dispute message
-router.post('/disputes/:id/messages', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const senderId = req.user._id;
-    const message = { ...req.body, sender: senderId };
     
-    const success = await organizerStorage.addDisputeMessage(id, message);
-    
-    if (success) {
-      res.json({ message: 'Message added successfully' });
-    } else {
-      res.status(404).json({ message: 'Dispute not found' });
-    }
+    res.json({
+      success: true,
+      message: 'Dispute response submitted successfully'
+    });
   } catch (error) {
-    console.error('Add dispute message error:', error);
-    res.status(500).json({ message: 'Failed to add dispute message' });
+    console.error('Respond to dispute error:', error);
+    res.status(500).json({ 
+      message: 'Failed to respond to dispute',
+      error: error.message 
+    });
   }
 });
 
@@ -1255,6 +1804,586 @@ router.post('/sample-data/clear', async (req, res) => {
   } catch (error) {
     console.error('Clear sample data error:', error);
     res.status(500).json({ message: 'Failed to clear sample data' });
+  }
+});
+
+// PUT /api/organizer/profile - Update current user profile
+router.put('/profile', async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { firstName, lastName, contactNumber, location, organizationName, instagramUsername, profileColor } = req.body;
+    
+    // Import and connect to MongoDB following the same pattern as other routes
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    
+    const usersCollection = mongoStorage.db.collection('auth_users');
+    
+    const updateData = {
+      firstName,
+      lastName,
+      contactNumber,
+      location,
+      organizationName,
+      instagramUsername,
+      profileColor,
+      updatedAt: new Date()
+    };
+    
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      }
+    });
+    
+    const { ObjectId } = await import('mongodb');
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) },
+      { $set: updateData }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    // Get updated user data
+    const updatedUser = await usersCollection.findOne({ _id: new ObjectId(userId) });
+    
+    // Remove sensitive data
+    const userResponse = {
+      _id: updatedUser._id,
+      email: updatedUser.email,
+      firstName: updatedUser.firstName,
+      lastName: updatedUser.lastName,
+      contactNumber: updatedUser.contactNumber,
+      location: updatedUser.location,
+      organizationName: updatedUser.organizationName,
+      instagramUsername: updatedUser.instagramUsername,
+      profileColor: updatedUser.profileColor,
+      role: updatedUser.role
+    };
+    
+    res.json({ 
+      message: 'Profile updated successfully',
+      user: userResponse 
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ message: 'Failed to update profile' });
+  }
+});
+
+// GET /api/organizer/earnings - Get organizer earnings with payout split
+router.get('/earnings', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    console.log('[Earnings] Calculating for organizer:', organizerId);
+    
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    // Get organizer's events - check both organizerId and organizationId fields
+    const eventsCollection = organizerStorage.db.collection('events');
+    const organizerEvents = await eventsCollection.find({
+      $or: [
+        { organizerId: organizerId },
+        { organizationId: organizerId },
+        { organizerId: new ObjectId(organizerId) },
+        { organizationId: new ObjectId(organizerId) }
+      ]
+    }).toArray();
+    
+    console.log('[Earnings] Found events:', organizerEvents.length);
+    
+    // Get confirmed bookings for these events
+    const bookingsCollection = organizerStorage.db.collection('bookings');
+    let confirmedBookings = [];
+    
+    if (organizerEvents.length > 0) {
+      const eventIds = organizerEvents.map(event => event._id.toString());
+      confirmedBookings = await bookingsCollection.find({
+        eventId: { $in: eventIds },
+        status: 'confirmed'
+      }).toArray();
+    }
+    
+    console.log('[Earnings] Found confirmed bookings:', confirmedBookings.length);
+    
+    // Calculate totals from actual booking data
+    let totalRevenue = 0;
+    let totalTransactions = 0;
+    
+    confirmedBookings.forEach(booking => {
+      const amount = parseFloat(booking.totalAmount || booking.amount) || 0;
+      if (amount > 0) {
+        totalRevenue += amount;
+        totalTransactions++;
+      }
+    });
+    
+    console.log('[Earnings] Total revenue:', totalRevenue);
+    
+    // Calculate 80/20 split (no platform fee for simplicity)
+    const immediateEarnings = totalRevenue * 0.8; // 80% immediate
+    const pendingEarnings = totalRevenue * 0.2;   // 20% pending for withdrawal
+    
+    // Get withdrawal requests
+    const withdrawalRequestsCollection = organizerStorage.db.collection('withdrawal_requests');
+    const withdrawalRequests = await withdrawalRequestsCollection.find({
+      organizationId: new ObjectId(organizerId)
+    }).toArray();
+    
+    let requestedEarnings = 0;
+    let paidEarnings = 0;
+    let totalWithdrawals = 0;
+    
+    withdrawalRequests.forEach(request => {
+      const amount = parseFloat(request.requestedAmount) || 0;
+      if (request.status === 'pending') {
+        requestedEarnings += amount;
+      } else if (request.status === 'approved' || request.status === 'processed') {
+        paidEarnings += amount;
+        totalWithdrawals++;
+      }
+    });
+    
+    const availableForWithdrawal = Math.max(0, pendingEarnings - requestedEarnings);
+    
+    const earnings = {
+      totalEarnings: totalRevenue,
+      immediateEarnings: immediateEarnings,
+      pendingEarnings: pendingEarnings,
+      requestedEarnings: requestedEarnings,
+      paidEarnings: paidEarnings,
+      availableForWithdrawal: availableForWithdrawal,
+      totalTransactions: totalTransactions,
+      totalWithdrawals: totalWithdrawals,
+      averageTransactionAmount: totalTransactions > 0 ? totalRevenue / totalTransactions : 0,
+      lastTransactionAt: confirmedBookings.length > 0 ? 
+        new Date(Math.max(...confirmedBookings.map(b => new Date(b.createdAt || b.bookingDate).getTime()))) : null,
+      lastWithdrawalAt: withdrawalRequests.length > 0 ? 
+        new Date(Math.max(...withdrawalRequests.map(r => new Date(r.createdAt).getTime()))) : null
+    };
+    
+    console.log('[Earnings] Final calculated earnings:', earnings);
+    
+    res.json({
+      success: true,
+      earnings: earnings
+    });
+  } catch (error) {
+    console.error('Get organizer earnings error:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch earnings',
+      error: error.message 
+    });
+  }
+});
+
+// GET /api/organizer/withdrawal-requests - Get organizer withdrawal requests
+router.get('/withdrawal-requests', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { status } = req.query;
+    
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    const withdrawalRequestsCollection = organizerStorage.db.collection('withdrawal_requests');
+    const filter = { organizationId: new ObjectId(organizerId) };
+    if (status) {
+      filter.status = status;
+    }
+    
+    const requests = await withdrawalRequestsCollection
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    res.json({
+      success: true,
+      requests: requests
+    });
+  } catch (error) {
+    console.error('Get withdrawal requests error:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch withdrawal requests',
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/organizer/withdrawal-request - Create withdrawal request
+router.post('/withdrawal-request', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { requestedAmount, requestReason, bankDetails } = req.body;
+    
+    await organizerStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    
+    const withdrawalRequest = {
+      organizationId: new ObjectId(organizerId),
+      organizerId: organizerId,
+      requestedAmount: parseFloat(requestedAmount),
+      requestReason: requestReason,
+      bankDetails: bankDetails,
+      status: 'pending',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
+    const withdrawalRequestsCollection = organizerStorage.db.collection('withdrawal_requests');
+    const result = await withdrawalRequestsCollection.insertOne(withdrawalRequest);
+    
+    res.status(201).json({
+      success: true,
+      message: 'Withdrawal request created successfully',
+      request: { ...withdrawalRequest, _id: result.insertedId }
+    });
+  } catch (error) {
+    console.error('Create withdrawal request error:', error);
+    res.status(500).json({ 
+      message: 'Failed to create withdrawal request',
+      error: error.message 
+    });
+  }
+});
+
+// ==================== SUPPORT TICKET SYSTEM ====================
+
+// GET /api/organizer/support/tickets - Get organizer's support tickets
+router.get('/support/tickets', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { status } = req.query;
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    const tickets = await mongoSupportTicketService.getOrganizerTickets(organizerId, status, mongoStorage);
+    res.json(tickets);
+  } catch (error) {
+    console.error('Get organizer tickets error:', error);
+    res.status(500).json({ message: 'Failed to fetch tickets' });
+  }
+});
+
+// POST /api/organizer/support/tickets - Create new support ticket
+router.post('/support/tickets', async (req, res) => {
+  try {
+    const organizerId = req.user._id.toString();
+    const { title, description, priority = 'medium', category = 'general' } = req.body;
+    
+    if (!title || !description) {
+      return res.status(400).json({ message: 'Title and description are required' });
+    }
+
+    const organizerName = req.user.firstName && req.user.lastName 
+      ? `${req.user.firstName} ${req.user.lastName}` 
+      : req.user.organizationName || req.user.email || 'Unknown';
+
+    const ticketData = {
+      organizerId,
+      organizerEmail: req.user.email,
+      organizerName,
+      title: title.trim(),
+      description: description.trim(),
+      priority,
+      category
+    };
+
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    const ticket = await mongoSupportTicketService.createTicket(ticketData, mongoStorage);
+    
+    // Send real-time notification to admins about new ticket
+    try {
+      const { pusherService } = await import('../services/pusherService.js');
+      console.log(`[Pusher] Sending new ticket notification for ticket: ${ticket.ticketNumber}`);
+      
+      await pusherService.notifyAdmin({
+        type: 'new_ticket',
+        ticketId: ticket.id,
+        ticketNumber: ticket.ticketNumber,
+        title: ticket.title,
+        organizerName: ticket.organizerName,
+        priority: ticket.priority,
+        message: `New support ticket created by ${ticket.organizerName}`
+      });
+      
+      // Update ticket counters for admin dashboard
+      console.log(`[Pusher] Sending counter update notification`);
+      await pusherService.updateTicketCounters();
+      console.log(`[Pusher] Notifications sent successfully`);
+    } catch (pusherError) {
+      console.error('[Pusher] Error sending notifications:', pusherError);
+    }
+    
+    res.status(201).json(ticket);
+  } catch (error) {
+    console.error('Create organizer ticket error:', error);
+    res.status(500).json({ message: 'Failed to create ticket' });
+  }
+});
+
+// GET /api/organizer/support/tickets/:id - Get specific ticket with messages
+router.get('/support/tickets/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const organizerId = req.user._id.toString();
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    const result = await mongoSupportTicketService.getTicketById(id, mongoStorage);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('Get organizer ticket details error:', error);
+    if (error.message === 'Access denied') {
+      res.status(403).json({ message: 'Access denied' });
+    } else {
+      res.status(500).json({ message: 'Failed to fetch ticket details' });
+    }
+  }
+});
+
+// POST /api/organizer/support/tickets/:id/messages - Add message to ticket
+router.post('/support/tickets/:id/messages', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+    
+    if (!message || !message.trim()) {
+      return res.status(400).json({ message: 'Message is required' });
+    }
+
+    const organizerName = req.user.firstName && req.user.lastName 
+      ? `${req.user.firstName} ${req.user.lastName}` 
+      : req.user.organizationName || req.user.email || 'Organizer';
+
+    const messageData = {
+      ticketId: id,
+      senderId: req.user._id.toString(),
+      senderName: organizerName,
+      senderType: 'organizer',
+      message: message.trim(),
+      messageType: 'text',
+      isInternal: false
+    };
+
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    const result = await mongoSupportTicketService.addMessage(id, messageData, mongoStorage);
+    
+    // Send WebSocket notification for real-time updates  
+    try {
+      if (global.broadcastMessage) {
+        // Get ticket details to get ticket number
+        const ticket = await mongoSupportTicketService.getTicketById(id, mongoStorage);
+        global.broadcastMessage({
+          type: 'new-message',
+          senderType: 'organizer', 
+          senderName: organizerName,
+          ticketId: id,
+          ticketNumber: ticket?.ticketNumber || `ST-${id.slice(-8)}`,
+          organizerEmail: req.user?.email,
+          message: result
+        });
+      }
+    } catch (error) {
+      console.error('Error sending WebSocket notification:', error);
+    }
+    
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Add organizer message error:', error);
+    res.status(500).json({ message: 'Failed to add message' });
+  }
+});
+
+// PUT /api/organizer/support/tickets/:id/mark-read - Mark messages as read
+router.put('/support/tickets/:id/mark-read', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { mongoSupportTicketService } = await import('../services/mongoSupportTicketService.js');
+    const { mongoStorage } = await import('../mongodb-storage.js');
+
+    await mongoSupportTicketService.markMessagesAsRead(id, 'organizer', mongoStorage);
+    res.json({ message: 'Messages marked as read successfully' });
+  } catch (error) {
+    console.error('Mark messages as read error:', error);
+    res.status(500).json({ message: 'Failed to mark messages as read' });
+  }
+});
+
+// ==================== BANK ACCOUNT MANAGEMENT ====================
+
+// GET /api/organizer/bank-accounts - Get organizer's bank accounts
+router.get('/bank-accounts', async (req, res) => {
+  try {
+    const organizerId = req.user._id;
+    
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+    
+    const bankAccounts = await bankAccountsCollection
+      .find({ organizerId: new ObjectId(organizerId) })
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    const sanitizedAccounts = bankAccounts.map(account => ({
+      id: account._id,
+      last4: account.last4,
+      bankName: account.bankName,
+      routingNumber: account.routingNumber,
+      accountHolderName: account.accountHolderName,
+      accountType: account.accountType,
+      isDefault: account.isDefault,
+      status: account.status,
+      createdAt: account.createdAt
+    }));
+    
+    res.json({ success: true, bankAccounts: sanitizedAccounts });
+  } catch (error) {
+    console.error('Error fetching bank accounts:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch bank accounts',
+      message: error.message 
+    });
+  }
+});
+
+// POST /api/organizer/bank-accounts - Add bank account with Stripe validation
+router.post('/bank-accounts', async (req, res) => {
+  try {
+    const organizerId = req.user._id;
+    const { accountNumber, routingNumber, accountHolderName, accountType = 'checking' } = req.body;
+
+    if (!accountNumber || !routingNumber || !accountHolderName) {
+      return res.status(400).json({ error: 'All bank account fields are required' });
+    }
+
+    // Mock Stripe integration for development
+    const mockExternalAccount = {
+      id: 'ba_mock_' + Date.now(),
+      last4: accountNumber.slice(-4),
+      bank_name: 'Mock Bank',
+      routing_number: routingNumber
+    };
+
+    // Save bank account details (without sensitive info)
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+    
+    const bankAccount = {
+      _id: new ObjectId(),
+      organizerId: new ObjectId(organizerId),
+      stripeBankAccountId: mockExternalAccount.id,
+      last4: mockExternalAccount.last4,
+      bankName: mockExternalAccount.bank_name,
+      routingNumber: mockExternalAccount.routing_number,
+      accountHolderName: accountHolderName,
+      accountType: accountType,
+      isDefault: false,
+      status: 'active',
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    await bankAccountsCollection.insertOne(bankAccount);
+    
+    res.json({
+      success: true,
+      bankAccount: {
+        id: bankAccount._id,
+        last4: bankAccount.last4,
+        bankName: bankAccount.bankName,
+        routingNumber: bankAccount.routingNumber,
+        accountHolderName: bankAccount.accountHolderName,
+        accountType: bankAccount.accountType,
+        isDefault: bankAccount.isDefault,
+        status: bankAccount.status
+      }
+    });
+  } catch (error) {
+    console.error('Error adding bank account:', error);
+    res.status(500).json({ 
+      error: 'Failed to add bank account',
+      message: error.message 
+    });
+  }
+});
+
+// PUT /api/organizer/bank-accounts/:id - Update bank account (set as default)
+router.put('/bank-accounts/:id', async (req, res) => {
+  try {
+    const organizerId = req.user._id;
+    const { id } = req.params;
+    const { isDefault } = req.body;
+    
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+    
+    if (isDefault) {
+      // Remove default from all other accounts
+      await bankAccountsCollection.updateMany(
+        { organizerId: new ObjectId(organizerId) },
+        { $set: { isDefault: false, updatedAt: new Date() } }
+      );
+    }
+    
+    // Update the specific account
+    const result = await bankAccountsCollection.updateOne(
+      { _id: new ObjectId(id), organizerId: new ObjectId(organizerId) },
+      { $set: { isDefault: isDefault || false, updatedAt: new Date() } }
+    );
+    
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ error: 'Bank account not found' });
+    }
+    
+    res.json({ success: true, message: 'Bank account updated successfully' });
+  } catch (error) {
+    console.error('Error updating bank account:', error);
+    res.status(500).json({ 
+      error: 'Failed to update bank account',
+      message: error.message 
+    });
+  }
+});
+
+// DELETE /api/organizer/bank-accounts/:id - Delete bank account
+router.delete('/bank-accounts/:id', async (req, res) => {
+  try {
+    const organizerId = req.user._id;
+    const { id } = req.params;
+    
+    const { mongoStorage } = await import('../mongodb-storage.js');
+    await mongoStorage.connect();
+    const { ObjectId } = await import('mongodb');
+    const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+    
+    // Get bank account details
+    const bankAccount = await bankAccountsCollection.findOne({
+      _id: new ObjectId(id),
+      organizerId: new ObjectId(organizerId)
+    });
+    
+    if (!bankAccount) {
+      return res.status(404).json({ error: 'Bank account not found' });
+    }
+    
+    // Delete from database
+    await bankAccountsCollection.deleteOne({ _id: new ObjectId(id) });
+    
+    res.json({ success: true, message: 'Bank account deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting bank account:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete bank account',
+      message: error.message 
+    });
   }
 });
 

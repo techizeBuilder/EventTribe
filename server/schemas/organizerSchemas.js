@@ -19,6 +19,19 @@ export const organizationSchema = {
   website: { type: 'string', default: '' },
   phone: { type: 'string', default: '' },
   isActive: { type: 'boolean', default: true },
+  
+  // Financial tracking for payouts
+  totalEarnings: { type: 'number', default: 0 },
+  paidEarnings: { type: 'number', default: 0 },
+  pendingEarnings: { type: 'number', default: 0 },
+  requestedEarnings: { type: 'number', default: 0 },
+  
+  // Bank details for payouts
+  bankAccountNumber: { type: 'string', default: '' },
+  bankRoutingNumber: { type: 'string', default: '' },
+  bankAccountHolderName: { type: 'string', default: '' },
+  bankName: { type: 'string', default: '' },
+  
   createdAt: { type: 'date', default: Date.now },
   updatedAt: { type: 'date', default: Date.now }
 };
@@ -66,7 +79,23 @@ export const eventSchema = {
     isActive: { type: 'boolean', default: true },
     saleStartDate: { type: 'date', default: Date.now },
     saleEndDate: { type: 'date', required: true },
-    perks: [{ type: 'string' }]
+    perks: [{ type: 'string' }],
+    // Advanced ticket settings
+    enableSkipLine: { type: 'boolean', default: false },
+    passwordProtect: { type: 'boolean', default: false },
+    enableBundle: { type: 'boolean', default: false },
+    enableEarlyBird: { type: 'boolean', default: false },
+    coverTicket: { type: 'boolean', default: false },
+    enableComboTickets: { type: 'boolean', default: false },
+    enableWaitlist: { type: 'boolean', default: false },
+    hideTicket: { type: 'boolean', default: false },
+    // Additional fields for advanced settings
+    ticketPassword: { type: 'string', default: '' },
+    earlyBirdPrice: { type: 'number', default: null },
+    earlyBirdEndDate: { type: 'date', default: null },
+    creditPrice: { type: 'number', default: null },
+    bundlePrice: { type: 'number', default: null },
+    waitlistTicket: { type: 'string', default: null }
   }],
   
   // Status and Settings

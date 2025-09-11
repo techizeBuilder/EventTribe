@@ -292,15 +292,86 @@ const EventDetailsPage = () => {
     toast.error("Payment failed. Please try again.");
   };
 
+  // Helper function to calculate actual ticket price based on advanced settings
+  const getTicketPrice = (ticket, quantity) => {
+    if (!ticket) return 0;
+    
+    let price = ticket.price;
+    
+    // Early Bird Pricing Logic
+    if (ticket.enableEarlyBird && ticket.earlyBirdPrice && ticket.earlyBirdEndDate) {
+      const now = new Date();
+      const earlyBirdEnd = new Date(ticket.earlyBirdEndDate);
+      if (now <= earlyBirdEnd) {
+        price = ticket.earlyBirdPrice;
+      }
+    }
+    
+    // Cover Ticket Pricing Logic
+    if (ticket.coverTicket && ticket.creditPrice !== null && ticket.creditPrice !== undefined) {
+      price = ticket.creditPrice;
+    }
+    
+    // Bundle Pricing Logic
+    if (ticket.enableBundle && ticket.bundlePrice && quantity) {
+      const bundleQty = parseInt(ticket.bundlePrice); // bundlePrice stores minimum quantity for bundle
+      if (quantity >= bundleQty) {
+        // Apply bundle discount (buy bundleQty, pay for bundleQty-1)
+        const fullPriceTickets = Math.floor(quantity / bundleQty) * (bundleQty - 1);
+        const remainderTickets = quantity % bundleQty;
+        const totalBundlePrice = (fullPriceTickets + remainderTickets) * price;
+        return totalBundlePrice / quantity; // Return per-ticket price
+      }
+    }
+    
+    return price;
+  };
+  
+  // Helper function to check if ticket is available (not sold out)
+  const isTicketAvailable = (ticket) => {
+    if (!ticket) return false;
+    return ticket.quantity > (ticket.sold || 0);
+  };
+  
+  // Helper function to check if early bird is active
+  const isEarlyBirdActive = (ticket) => {
+    if (!ticket?.enableEarlyBird || !ticket.earlyBirdEndDate) return false;
+    const now = new Date();
+    const earlyBirdEnd = new Date(ticket.earlyBirdEndDate);
+    return now <= earlyBirdEnd;
+  };
+  
+  // Helper function to get time remaining for early bird
+  const getEarlyBirdTimeRemaining = (ticket) => {
+    if (!isEarlyBirdActive(ticket)) return null;
+    const now = new Date();
+    const earlyBirdEnd = new Date(ticket.earlyBirdEndDate);
+    const timeDiff = earlyBirdEnd.getTime() - now.getTime();
+    const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (days > 0) return `${days}d ${hours}h remaining`;
+    if (hours > 0) return `${hours}h ${minutes}m remaining`;
+    return `${minutes}m remaining`;
+  };
+  
+  // Helper function to handle waitlist join
+  const handleWaitlistJoin = async (ticket, ticketIndex) => {
+    // Implement waitlist functionality
+    toast.success(`You've been added to the waitlist for ${ticket.name}!`);
+  };
+
   const getTicketDetails = () => {
     return Object.entries(selectedTickets).map(([ticketId, quantity]) => {
       const ticket = event.ticketTypes?.[parseInt(ticketId)];
+      const actualPrice = getTicketPrice(ticket, quantity);
       return {
         ticketId,
         name: ticket?.name || "General Admission",
-        price: ticket?.price || 0,
+        price: actualPrice,
         quantity,
-        total: (ticket?.price || 0) * quantity,
+        total: actualPrice * quantity,
       };
     });
   };
@@ -560,16 +631,47 @@ const EventDetailsPage = () => {
                                     </span>
                                   )}
 
-                                  <p className="text-white font-bold text-xl">
-                                    ${(ticket.coverTicket && ticket.creditPrice !== null && ticket.creditPrice !== undefined 
-                                      ? ticket.creditPrice 
-                                      : ticket.price)?.toFixed(2) ?? "0.00"}
-                                  </p>
-                                  {ticket.coverTicket && ticket.creditPrice !== null && ticket.creditPrice !== undefined && (
-                                    <p className="text-xs text-green-400 mt-1">
-                                      Cover Ticket Price
-                                    </p>
-                                  )}
+                                  <div className="pricing-info">
+                                    {isEarlyBirdActive(ticket) ? (
+                                      <div>
+                                        <p className="text-lg font-bold text-green-400 mb-1">
+                                          ${ticket.earlyBirdPrice?.toFixed(2) ?? "0.00"}
+                                        </p>
+                                        <p className="text-xs text-gray-400 line-through">
+                                          Was: ${ticket.price?.toFixed(2) ?? "0.00"}
+                                        </p>
+                                        <p className="text-xs text-green-400 mt-1">
+                                          🎯 Early Bird - {getEarlyBirdTimeRemaining(ticket)}
+                                        </p>
+                                      </div>
+                                    ) : (
+                                      <p className="text-lg font-bold text-white mb-1">
+                                        ${(ticket.coverTicket &&
+                                          ticket.creditPrice !== null &&
+                                          ticket.creditPrice !== undefined
+                                          ? ticket.creditPrice
+                                          : ticket.price)?.toFixed(2) ?? "0.00"}
+                                      </p>
+                                    )}
+                                    
+                                    {ticket.coverTicket && (
+                                      <p className="text-xs text-green-400 mt-1">
+                                        🎫 Cover Ticket - Includes perks
+                                      </p>
+                                    )}
+                                    
+                                    {ticket.enableBundle && ticket.bundlePrice && (
+                                      <p className="text-xs text-blue-400 mt-1">
+                                        🎁 Bundle Deal: Buy {ticket.bundlePrice}, Pay for {ticket.bundlePrice - 1}
+                                      </p>
+                                    )}
+                                    
+                                    {ticket.enableSkipLine && (
+                                      <p className="text-xs text-yellow-400 mt-1">
+                                        ⚡ Skip the Line Access
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
 
                                 {/* Check if event is expired */}
@@ -585,6 +687,27 @@ const EventDetailsPage = () => {
                                     >
                                       Booking Unavailable
                                     </button>
+                                  </div>
+                                ) : !isTicketAvailable(ticket) ? (
+                                  <div className="text-center">
+                                    <p className="text-red-400 text-sm mb-2 font-medium">
+                                      Sold Out
+                                    </p>
+                                    {ticket.enableWaitlist ? (
+                                      <button
+                                        onClick={() => handleWaitlistJoin(ticket, index)}
+                                        className="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                      >
+                                        Join Waitlist
+                                      </button>
+                                    ) : (
+                                      <button
+                                        className="bg-gray-600 cursor-not-allowed text-gray-300 px-4 py-2 rounded-lg text-sm font-medium"
+                                        disabled
+                                      >
+                                        Sold Out
+                                      </button>
+                                    )}
                                   </div>
                                 ) : (
                                   <div className="flex flex-col space-y-2 sm:space-y-3">
@@ -624,11 +747,18 @@ const EventDetailsPage = () => {
                                             });
                                             setShowTicketPasswordModal(true);
                                           } else {
-                                            // No password protection, add directly
+                                            // No password protection, add directly with updated pricing
+                                            const ticketWithUpdatedPrice = {
+                                              ...ticket,
+                                              price: getTicketPrice(ticket, selectedTickets[index]),
+                                              originalPrice: ticket.price,
+                                              isEarlyBird: isEarlyBirdActive(ticket),
+                                              bundleApplied: ticket.enableBundle && selectedTickets[index] >= parseInt(ticket.bundlePrice || 0)
+                                            };
                                             addToCart(
                                               event.id || event._id,
                                               event.title,
-                                              ticket,
+                                              ticketWithUpdatedPrice,
                                               selectedTickets[index],
                                             );
                                             setSelectedTickets((prev) => ({

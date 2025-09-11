@@ -18,6 +18,7 @@ import {
 } from "react-icons/fi";
 import { X } from "lucide-react";
 import toast from "react-hot-toast";
+import * as XLSX from 'xlsx';
 
 export default function AdminEventsManagement() {
   const [events, setEvents] = useState([]);
@@ -32,6 +33,7 @@ export default function AdminEventsManagement() {
   const [editModal, setEditModal] = useState({ isOpen: false, event: null });
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, event: null });
   const [bookingsModal, setBookingsModal] = useState({ isOpen: false, event: null, bookings: [], loading: false });
+  const [rejectModal, setRejectModal] = useState({ isOpen: false, event: null, reason: '' });
   const [actionLoading, setActionLoading] = useState(false);
 
   // Form states
@@ -55,7 +57,7 @@ export default function AdminEventsManagement() {
       
       // Check if token exists
       if (!token) {
-        toast.error("Admin authentication required");
+        // Don't show duplicate toast - let adminAuth.js handle it
         return;
       }
       
@@ -264,6 +266,73 @@ export default function AdminEventsManagement() {
     }
   };
 
+  const handleExportToExcel = () => {
+    try {
+      // Prepare data for export
+      const exportData = events.map((event, index) => ({
+        '#': index + 1,
+        'Event Title': event.title || 'N/A',
+        'Organizer': event.organizer || 'Unknown',
+        'Venue': event.venue || 'N/A',
+        'Address': event.address || 'N/A',
+        'Category': event.category || 'N/A',
+        'Start Date': event.startDate ? formatDate(event.startDate) : 'N/A',
+        'End Date': event.endDate ? formatDate(event.endDate) : 'N/A',
+        'Status': event.status || 'N/A',
+        'Event Type': event.eventType || 'N/A',
+        'Location Type': event.locationType || 'N/A',
+        'Public': event.isPublic ? 'Yes' : 'No',
+        'Allow Refunds': event.allowRefunds ? 'Yes' : 'No',
+        'Revenue': `$${(event.revenue || 0).toFixed(2)}`,
+        'Tickets Sold': event.tickets || 0,
+        'Description': event.description ? event.description.substring(0, 100) + (event.description.length > 100 ? '...' : '') : 'N/A',
+        'Created Date': event.createdAt ? formatDate(event.createdAt) : 'N/A'
+      }));
+
+      // Create workbook and worksheet
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      
+      // Set column widths
+      const colWidths = [
+        { wch: 5 },   // #
+        { wch: 25 },  // Event Title
+        { wch: 20 },  // Organizer
+        { wch: 20 },  // Venue
+        { wch: 25 },  // Address
+        { wch: 15 },  // Category
+        { wch: 18 },  // Start Date
+        { wch: 18 },  // End Date
+        { wch: 12 },  // Status
+        { wch: 15 },  // Event Type
+        { wch: 15 },  // Location Type
+        { wch: 8 },   // Public
+        { wch: 12 },  // Allow Refunds
+        { wch: 12 },  // Revenue
+        { wch: 12 },  // Tickets Sold
+        { wch: 30 },  // Description
+        { wch: 18 }   // Created Date
+      ];
+      ws['!cols'] = colWidths;
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Events');
+      
+      // Generate filename with current date
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
+      const filename = `Events_Export_${dateStr}.xlsx`;
+      
+      // Save file
+      XLSX.writeFile(wb, filename);
+      
+      toast.success(`Successfully exported ${events.length} events to ${filename}`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export events. Please try again.');
+    }
+  };
+
   const filteredEvents = events.filter(event => {
     const matchesSearch = event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (event.description && event.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -281,6 +350,9 @@ export default function AdminEventsManagement() {
     switch (status) {
       case "published": return "bg-green-500/20 text-green-400 border-green-500/30";
       case "draft": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "rejected": return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "cancelled": return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "completed": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
       default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
     }
   };
@@ -312,7 +384,11 @@ export default function AdminEventsManagement() {
           <p className="text-gray-400 mt-1">Manage all platform events</p>
         </div>
         <div className="flex items-center space-x-3">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors">
+          <button 
+            onClick={handleExportToExcel}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
+            title="Export all events to Excel file"
+          >
             <FiDownload className="w-4 h-4" />
             <span>Export</span>
           </button>
@@ -384,6 +460,9 @@ export default function AdminEventsManagement() {
               <option value="all">All Status</option>
               <option value="published">Published</option>
               <option value="draft">Draft</option>
+              <option value="rejected">Rejected</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
             </select>
           </div>
         </div>
@@ -399,7 +478,6 @@ export default function AdminEventsManagement() {
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[150px]">Organizer</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Date</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Status</th>
-                <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Tickets</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[100px]">Revenue</th>
                 <th className="text-left p-4 text-gray-300 font-medium min-w-[120px]">Bookings</th>
               </tr>
@@ -414,8 +492,23 @@ export default function AdminEventsManagement() {
                 >
                   <td className="p-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center">
-                        <FiCalendar className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center bg-gray-700">
+                        {event.image || event.coverImage ? (
+                          <img 
+                            src={event.image || event.coverImage} 
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div 
+                          className={`w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 rounded-lg flex items-center justify-center ${event.image || event.coverImage ? 'hidden' : ''}`}
+                        >
+                          <FiCalendar className="w-6 h-6 text-white" />
+                        </div>
                       </div>
                       <div>
                         <p className="text-white font-medium">{event.title}</p>
@@ -446,7 +539,11 @@ export default function AdminEventsManagement() {
                         <select
                           onChange={(e) => {
                             if (e.target.value && e.target.value !== event.status) {
-                              handleStatusUpdate(event.id, e.target.value);
+                              if (e.target.value === 'reject') {
+                                setRejectModal({ isOpen: true, event: event, reason: '' });
+                              } else {
+                                handleStatusUpdate(event.id, e.target.value);
+                              }
                             }
                             e.target.value = '';
                           }}
@@ -455,39 +552,25 @@ export default function AdminEventsManagement() {
                         >
                           <option value="" disabled>Update Status</option>
                           {event.status === 'draft' && (
-                            <option value="published">Publish</option>
+                            <>
+                              <option value="published">Publish</option>
+                              <option value="reject">Reject</option>
+                            </>
                           )}
                           {event.status === 'published' && (
-                            <option value="draft">Mark as Draft</option>
+                            <>
+                              <option value="draft">Mark as Draft</option>
+                              <option value="reject">Reject</option>
+                            </>
+                          )}
+                          {event.status === 'rejected' && (
+                            <>
+                              <option value="published">Approve</option>
+                              <option value="draft">Mark as Draft</option>
+                            </>
                           )}
                         </select>
                       </div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="text-sm">
-                      {(() => {
-                        const totalTickets = event.ticketTypes?.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0) || 0;
-                        const soldTickets = event.ticketTypes?.reduce((sum, ticket) => sum + (ticket.sold || 0), 0) || 0;
-                        return (
-                          <>
-                            <span className="text-white font-medium">{soldTickets}</span>
-                            <span className="text-gray-400">/{totalTickets}</span>
-                          </>
-                        );
-                      })()}
-                    </div>
-                    <div className="w-24 bg-gray-700 rounded-full h-2 mt-1">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full" 
-                        style={{ 
-                          width: `${(() => {
-                            const totalTickets = event.ticketTypes?.reduce((sum, ticket) => sum + (ticket.quantity || 0), 0) || 0;
-                            const soldTickets = event.ticketTypes?.reduce((sum, ticket) => sum + (ticket.sold || 0), 0) || 0;
-                            return totalTickets ? (soldTickets / totalTickets) * 100 : 0;
-                          })()}%` 
-                        }}
-                      ></div>
                     </div>
                   </td>
                   <td className="p-4">
@@ -758,26 +841,209 @@ export default function AdminEventsManagement() {
             </div>
 
             {bookingsModal.event && (
-              <div className="mb-6 p-4 bg-gray-700 rounded-lg">
-                <h4 className="text-lg font-semibold text-white mb-2">{bookingsModal.event.title}</h4>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-400">Date:</span>
-                    <p className="text-white">{formatDate(bookingsModal.event.startDate)}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Venue:</span>
-                    <p className="text-white">{bookingsModal.event.venue || 'TBD'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Status:</span>
-                    <p className="text-white">{bookingsModal.event.status}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-400">Revenue:</span>
-                    <p className="text-green-400">${(bookingsModal.event.revenue || 0).toLocaleString()}</p>
+              <div className="mb-6 space-y-6">
+                {/* Event Header with Image */}
+                <div className="bg-gray-700 rounded-lg p-6">
+                  <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Event Image */}
+                    {bookingsModal.event.image && (
+                      <div className="lg:w-64 flex-shrink-0">
+                        <img
+                          src={bookingsModal.event.image}
+                          alt={bookingsModal.event.title}
+                          className="w-full h-48 object-cover rounded-lg"
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Event Details */}
+                    <div className="flex-1 space-y-4">
+                      <div className="flex items-start justify-between">
+                        <h4 className="text-2xl font-bold text-white">{bookingsModal.event.title}</h4>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(bookingsModal.event.status)}`}>
+                          {bookingsModal.event.status.charAt(0).toUpperCase() + bookingsModal.event.status.slice(1)}
+                        </span>
+                      </div>
+                      
+                      {bookingsModal.event.description && (
+                        <p className="text-gray-300 leading-relaxed">
+                          {bookingsModal.event.description.length > 200 
+                            ? bookingsModal.event.description.substring(0, 200) + '...'
+                            : bookingsModal.event.description
+                          }
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Event Information Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Basic Information */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h5 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      <span className="w-2 h-2 bg-blue-500 rounded-full mr-3"></span>
+                      Basic Information
+                    </h5>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Category:</span>
+                        <span className="text-white">{bookingsModal.event.category || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Event Type:</span>
+                        <span className="text-white">{bookingsModal.event.eventType || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Location Type:</span>
+                        <span className="text-white">{bookingsModal.event.locationType || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Public Event:</span>
+                        <span className="text-white">{bookingsModal.event.isPublic ? 'Yes' : 'No'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Allow Refunds:</span>
+                        <span className="text-white">{bookingsModal.event.allowRefunds ? 'Yes' : 'No'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date & Location */}
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h5 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      <span className="w-2 h-2 bg-green-500 rounded-full mr-3"></span>
+                      Date & Location
+                    </h5>
+                    <div className="space-y-3 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Start Date:</span>
+                        <span className="text-white">{formatDate(bookingsModal.event.startDate)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">End Date:</span>
+                        <span className="text-white">{formatDate(bookingsModal.event.endDate)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Event Date:</span>
+                        <span className="text-white">{bookingsModal.event.eventDate ? new Date(bookingsModal.event.eventDate).toLocaleDateString() : 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Event Time:</span>
+                        <span className="text-white">{bookingsModal.event.eventTime || 'N/A'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Venue:</span>
+                        <span className="text-white">{bookingsModal.event.venue || 'TBD'}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Address:</span>
+                        <span className="text-white">{bookingsModal.event.address || 'TBD'}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status-Specific Information */}
+                {bookingsModal.event.status === 'rejected' && bookingsModal.event.rejectionReason && (
+                  <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                    <h5 className="text-lg font-semibold text-red-300 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                      Rejection Information
+                    </h5>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-red-400 font-medium">Reason:</span>
+                        <p className="text-red-200 mt-1 leading-relaxed">{bookingsModal.event.rejectionReason}</p>
+                      </div>
+                      {bookingsModal.event.rejectedAt && (
+                        <div className="flex justify-between">
+                          <span className="text-red-400">Rejected Date:</span>
+                          <span className="text-red-200">{new Date(bookingsModal.event.rejectedAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {bookingsModal.event.status === 'cancelled' && bookingsModal.event.cancellationReason && (
+                  <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4">
+                    <h5 className="text-lg font-semibold text-red-300 mb-3 flex items-center">
+                      <span className="w-2 h-2 bg-red-500 rounded-full mr-3"></span>
+                      Cancellation Information
+                    </h5>
+                    <div className="space-y-3 text-sm">
+                      <div>
+                        <span className="text-red-400 font-medium">Reason:</span>
+                        <p className="text-red-200 mt-1 leading-relaxed">{bookingsModal.event.cancellationReason}</p>
+                      </div>
+                      {bookingsModal.event.cancelledAt && (
+                        <div className="flex justify-between">
+                          <span className="text-red-400">Cancelled Date:</span>
+                          <span className="text-red-200">{new Date(bookingsModal.event.cancelledAt).toLocaleDateString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Revenue & Statistics */}
+                <div className="bg-gray-700 rounded-lg p-4">
+                  <h5 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <span className="w-2 h-2 bg-purple-500 rounded-full mr-3"></span>
+                    Event Statistics
+                  </h5>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                    <div className="text-center p-3 bg-gray-800 rounded-lg">
+                      <div className="text-green-400 font-bold text-lg">
+                        ${(bookingsModal.event.revenue || 0).toLocaleString()}
+                      </div>
+                      <div className="text-gray-400">Total Revenue</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800 rounded-lg">
+                      <div className="text-blue-400 font-bold text-lg">
+                        {bookingsModal.bookings?.length || 0}
+                      </div>
+                      <div className="text-gray-400">Total Bookings</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800 rounded-lg">
+                      <div className="text-purple-400 font-bold text-lg">
+                        {bookingsModal.bookings?.filter(b => b.status === 'confirmed')?.length || 0}
+                      </div>
+                      <div className="text-gray-400">Confirmed</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-800 rounded-lg">
+                      <div className="text-orange-400 font-bold text-lg">
+                        {bookingsModal.event.ticketTypes?.length || 0}
+                      </div>
+                      <div className="text-gray-400">Ticket Types</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ticket Types Information */}
+                {bookingsModal.event.ticketTypes && bookingsModal.event.ticketTypes.length > 0 && (
+                  <div className="bg-gray-700 rounded-lg p-4">
+                    <h5 className="text-lg font-semibold text-white mb-4 flex items-center">
+                      <span className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></span>
+                      Available Tickets
+                    </h5>
+                    <div className="space-y-3">
+                      {bookingsModal.event.ticketTypes.map((ticket, index) => (
+                        <div key={index} className="bg-gray-800 rounded-lg p-3 flex justify-between items-center">
+                          <div>
+                            <h6 className="text-white font-medium">{ticket.name}</h6>
+                            <p className="text-gray-400 text-sm">{ticket.description}</p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-green-400 font-bold">${ticket.price}</div>
+                            <div className="text-gray-400 text-sm">{ticket.quantity} available</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -793,37 +1059,6 @@ export default function AdminEventsManagement() {
               </div>
             ) : (
               <div className="space-y-6">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-white">{bookingsModal.bookings.length}</div>
-                    <div className="text-blue-100 text-sm">Total Bookings</div>
-                  </div>
-                  <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-white">
-                      ${bookingsModal.bookings.reduce((sum, booking) => sum + booking.totalAmount, 0).toFixed(2)}
-                    </div>
-                    <div className="text-green-100 text-sm">Total Revenue</div>
-                  </div>
-                  <div className="bg-gradient-to-r from-purple-600 to-purple-700 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-white">
-                      {bookingsModal.bookings.filter(b => b.status === 'confirmed').length}
-                    </div>
-                    <div className="text-purple-100 text-sm">Confirmed</div>
-                  </div>
-                  <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-white">
-                      {bookingsModal.bookings.reduce((sum, booking) => {
-                        if (booking.ticketDetails && Array.isArray(booking.ticketDetails)) {
-                          return sum + booking.ticketDetails.reduce((total, ticket) => total + ticket.quantity, 0);
-                        }
-                        return sum + 1;
-                      }, 0)}
-                    </div>
-                    <div className="text-orange-100 text-sm">Total Tickets</div>
-                  </div>
-                </div>
-
                 {/* Bookings List */}
                 <div className="space-y-4">
                   <h5 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -920,6 +1155,64 @@ export default function AdminEventsManagement() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Reject Event Modal */}
+      {rejectModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-white">Reject Event</h3>
+              <button
+                onClick={() => setRejectModal({ isOpen: false, event: null, reason: '' })}
+                className="text-gray-400 hover:text-white"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <p className="text-gray-300 mb-4">
+              Are you sure you want to reject "{rejectModal.event?.title}"? 
+            </p>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Reason for rejection <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                placeholder="Please provide a reason for rejecting this event..."
+                rows="4"
+                className="w-full bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-red-500 focus:outline-none resize-none"
+                required
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setRejectModal({ isOpen: false, event: null, reason: '' })}
+                className="px-4 py-2 text-gray-400 hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (rejectModal.reason.trim()) {
+                    handleStatusUpdate(rejectModal.event.id, 'rejected', rejectModal.reason.trim());
+                    setRejectModal({ isOpen: false, event: null, reason: '' });
+                  } else {
+                    toast.error('Please provide a reason for rejection');
+                  }
+                }}
+                disabled={actionLoading || !rejectModal.reason.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {actionLoading ? 'Rejecting...' : 'Reject Event'}
+              </button>
+            </div>
           </div>
         </div>
       )}
