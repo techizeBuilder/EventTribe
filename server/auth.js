@@ -29,15 +29,16 @@ class AuthService {
   }
 
   generateToken(userId, role) {
-    // Generate token without expiration
-    return jwt.sign({ userId, role }, JWT_SECRET);
+    // Generate token with type for better compatibility with enhanced auth service
+    return jwt.sign({ userId, role, type: "access" }, JWT_SECRET);
   }
 
   verifyToken(token) {
-    // console.log('Token is a', token);
     try {
-      return jwt.verify(token, JWT_SECRET);
+      const decoded = jwt.verify(token, JWT_SECRET);
+      return decoded;
     } catch (error) {
+      console.error("Token verification failed:", error.message);
       throw new Error("Invalid token");
     }
   }
@@ -173,28 +174,33 @@ class AuthService {
 
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
-
   const authHeader = req.headers["authorization"];
+  console.log("Auth header received in auth.js:", authHeader ? "Bearer ***" : "None");
   const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
 
   if (!token) {
+    console.log("No token provided in request for:", req.method, req.path);
     return res.status(401).json({ message: "Access token required" });
   }
 
-  const authService = new AuthService();
-  const decoded = authService.verifyToken(token);
+  try {
+    const authService = new AuthService();
+    const decoded = authService.verifyToken(token);
 
-  // Get user data
-  await authService.connect();
-  const user = await authService.getUserById(decoded.userId);
+    // Get user data
+    await authService.connect();
+    const user = await authService.getUserById(decoded.userId);
 
-  if (!user) {
-    return res.status(401).json({ message: "User not found" });
+    if (!user) {
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error("Authentication error:", error);
+    return res.status(401).json({ message: "Invalid token" });
   }
-
-  req.user = user;
-  next();
-
 };
 
 // Middleware to check user role

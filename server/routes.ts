@@ -2,13 +2,16 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { mongoStorage } from "./mongodb-storage.js";
-import { AuthService, authenticateToken, requireRole } from "./auth.js";
+import { AuthService, requireRole as oldRequireRole } from "./auth.js";
 import { enhancedAuthService } from "./authServiceEnhanced.js";
 import { payoutService } from "./services/payoutService.js";
 import { stripeConnectService } from "./stripeConnect.js";
+import { authenticateToken, requireRole, authenticateOrganizer } from "./middleware/authMiddleware.js";
 import Stripe from "stripe";
 import dotenv from "dotenv";
 import passport from "passport";
+import organizerPayoutRoutes from "./routes/organizerPayoutRoutes.js";
+import adminPayoutRoutes from "./routes/adminPayoutRoutes.js";
 dotenv.config();
 let stripe = null;
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
@@ -801,6 +804,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ==================== STRIPE CONNECT ROUTES ====================
+
+  // Register payout routes
+  app.use('/api/organizer/payouts', organizerPayoutRoutes);
+  app.use('/api/admin/payouts', adminPayoutRoutes);
 
   // Create Stripe Connect account for organizer
   app.post("/api/stripe/create-connect-account", authenticateToken, async (req, res) => {

@@ -2,14 +2,15 @@ import express from 'express';
 import { stripeConnectService } from '../stripeConnect.js';
 import { mongoStorage } from '../mongodb-storage.js';
 import { ObjectId } from 'mongodb';
-import { authenticateOrganizer } from '../middleware/auth.js';
+import { authenticateOrganizer } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // Get organizer's pending commission balance
 router.get('/commission-balance', authenticateOrganizer, async (req, res) => {
     try {
-        const { organizerId } = req.user;
+        const organizerId = req.user._id || req.user.id;
+        console.log('Organizer ID:', organizerId);
         await mongoStorage.connect();
         const pendingPayoutsCollection = mongoStorage.db.collection('pending_payouts');
 
@@ -39,7 +40,8 @@ router.get('/commission-balance', authenticateOrganizer, async (req, res) => {
 // Request commission payout (20%)
 router.post('/request-commission-payout', authenticateOrganizer, async (req, res) => {
     try {
-        const { organizerId } = req.user;
+        const organizerId = req.user._id || req.user.id;
+        console.log('Organizer ID for payout request:', organizerId);
         const { eventIds, reason } = req.body;
 
         if (!eventIds || !Array.isArray(eventIds)) {
@@ -100,9 +102,9 @@ router.post('/request-commission-payout', authenticateOrganizer, async (req, res
 
 // Get payout history
 router.get('/payout-history', authenticateOrganizer, async (req, res) => {
-    console.log('dfss');
     try {
-        const { organizerId } = req.user;
+        const organizerId = req.user._id || req.user.id;
+        console.log('Organizer ID for payout history:', organizerId);
         await mongoStorage.connect();
         const payoutRequestsCollection = mongoStorage.db.collection('payout_requests');
 

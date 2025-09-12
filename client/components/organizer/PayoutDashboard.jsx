@@ -66,7 +66,7 @@ export default function PayoutDashboard() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setEarnings(data.earnings);
@@ -87,7 +87,7 @@ export default function PayoutDashboard() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setWithdrawalRequests(data.requests);
@@ -104,7 +104,7 @@ export default function PayoutDashboard() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setPayouts(data.payouts || []);
@@ -121,7 +121,7 @@ export default function PayoutDashboard() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setBankAccounts(data.bankAccounts || []);
@@ -134,12 +134,12 @@ export default function PayoutDashboard() {
   const handleAddBankAccount = async () => {
     try {
       setAddingBankAccount(true);
-      
+
       if (!bankAccountForm.accountNumber || !bankAccountForm.routingNumber || !bankAccountForm.accountHolderName) {
         toast.error('Please fill in all required fields');
         return;
       }
-      
+
       const response = await fetch('/api/organizer/bank-accounts', {
         method: 'POST',
         headers: {
@@ -148,9 +148,9 @@ export default function PayoutDashboard() {
         },
         body: JSON.stringify(bankAccountForm)
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
         toast.success('Bank account added successfully!');
         setBankAccountForm({
@@ -179,7 +179,7 @@ export default function PayoutDashboard() {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
-      
+
       if (response.ok) {
         toast.success('Bank account deleted successfully!');
         fetchBankAccounts();
@@ -203,7 +203,7 @@ export default function PayoutDashboard() {
         },
         body: JSON.stringify({ isDefault: true })
       });
-      
+
       if (response.ok) {
         toast.success('Default bank account updated!');
         fetchBankAccounts();
@@ -288,7 +288,7 @@ export default function PayoutDashboard() {
       }
 
       if (!immediateWithdrawalForm.bankDetails.accountNumber || !immediateWithdrawalForm.bankDetails.routingNumber ||
-          !immediateWithdrawalForm.bankDetails.accountHolderName || !immediateWithdrawalForm.bankDetails.bankName) {
+        !immediateWithdrawalForm.bankDetails.accountHolderName || !immediateWithdrawalForm.bankDetails.bankName) {
         toast.error('Please fill in all bank details');
         return;
       }
@@ -370,7 +370,7 @@ export default function PayoutDashboard() {
             <h1 className="text-3xl font-bold text-white">Payout Dashboard</h1>
             <p className="text-gray-400">Manage your earnings and withdrawal requests</p>
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={() => setShowBankAccountModal(true)}
@@ -380,7 +380,7 @@ export default function PayoutDashboard() {
               <Settings className="w-4 h-4" />
               Manage Bank Accounts
             </button>
-            
+
             {earnings.immediateEarnings > 0 && (
               <button
                 onClick={() => {
@@ -402,7 +402,7 @@ export default function PayoutDashboard() {
                 Withdraw 80% (${earnings.immediateEarnings.toFixed(2)})
               </button>
             )}
-            
+
             <button
               onClick={() => setIsWithdrawalModalOpen(true)}
               disabled={earnings.availableForWithdrawal <= 0}
@@ -494,7 +494,7 @@ export default function PayoutDashboard() {
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-6" data-testid="card-payouts">
           <h2 className="text-xl font-semibold text-white mb-2">Payouts & Withdrawals</h2>
           <p className="text-gray-400 mb-6">Your completed payouts and withdrawal history</p>
-          
+
           {payouts.length === 0 ? (
             <div className="text-center py-12 text-gray-500" data-testid="text-no-payouts">
               <DollarSign className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -504,8 +504,8 @@ export default function PayoutDashboard() {
           ) : (
             <div className="space-y-4" data-testid="list-payouts">
               {payouts.map((payout, index) => (
-                <div 
-                  key={payout._id} 
+                <div
+                  key={payout._id}
                   className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800"
                   data-testid={`payout-${index}`}
                 >
@@ -543,7 +543,7 @@ export default function PayoutDashboard() {
         <div className="bg-gray-900 border border-gray-700 rounded-lg p-6" data-testid="card-withdrawal-requests">
           <h2 className="text-xl font-semibold text-white mb-2">Withdrawal Requests</h2>
           <p className="text-gray-400 mb-6">Track your withdrawal requests and their status</p>
-          
+
           {withdrawalRequests.length === 0 ? (
             <div className="text-center py-12 text-gray-500" data-testid="text-no-requests">
               <Download className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -553,8 +553,8 @@ export default function PayoutDashboard() {
           ) : (
             <div className="space-y-4" data-testid="list-withdrawal-requests">
               {withdrawalRequests.map((request, index) => (
-                <div 
-                  key={request._id} 
+                <div
+                  key={request._id}
                   className="flex items-center justify-between p-4 border border-gray-700 rounded-lg bg-gray-800"
                   data-testid={`withdrawal-request-${index}`}
                 >
@@ -614,7 +614,7 @@ export default function PayoutDashboard() {
                 <Plus className="w-5 h-5" />
                 Add New Bank Account
               </h3>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Account Holder Name *</label>
@@ -628,7 +628,7 @@ export default function PayoutDashboard() {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Account Type *</label>
                   <select
@@ -638,11 +638,11 @@ export default function PayoutDashboard() {
                     data-testid="select-account-type"
                     required
                   >
-                    <option value="checking">Checking Account</option>
+                    <option value="current">Current Account</option>
                     <option value="savings">Savings Account</option>
                   </select>
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Account Number *</label>
                   <input
@@ -659,7 +659,7 @@ export default function PayoutDashboard() {
                     <p className="text-xs text-red-400 mt-1">Account number must be at least 4 digits</p>
                   )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Routing Number *</label>
                   <input
@@ -677,7 +677,7 @@ export default function PayoutDashboard() {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex gap-3 mt-4">
                 <button
                   onClick={handleAddBankAccount}
@@ -689,7 +689,7 @@ export default function PayoutDashboard() {
                   {addingBankAccount ? 'Adding Account...' : 'Add Bank Account'}
                 </button>
               </div>
-              
+
               <div className="mt-3 p-3 bg-blue-900/20 border border-blue-700/30 rounded-lg">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
@@ -704,7 +704,7 @@ export default function PayoutDashboard() {
             {/* Existing Bank Accounts */}
             <div>
               <h3 className="text-lg font-medium text-white mb-4">Your Bank Accounts</h3>
-              
+
               {bankAccounts.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   <CreditCard className="h-16 w-16 mx-auto mb-4 opacity-50" />
@@ -714,13 +714,12 @@ export default function PayoutDashboard() {
               ) : (
                 <div className="space-y-3">
                   {bankAccounts.map((account, index) => (
-                    <div 
-                      key={account.id} 
-                      className={`p-4 border rounded-lg ${
-                        account.isDefault 
-                          ? 'border-blue-500 bg-blue-900/20' 
+                    <div
+                      key={account.id}
+                      className={`p-4 border rounded-lg ${account.isDefault
+                          ? 'border-blue-500 bg-blue-900/20'
                           : 'border-gray-700 bg-gray-800'
-                      }`}
+                        }`}
                       data-testid={`bank-account-${index}`}
                     >
                       <div className="flex items-center justify-between">
@@ -745,7 +744,7 @@ export default function PayoutDashboard() {
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-2 ml-4">
                           {!account.isDefault && (
                             <button
@@ -770,7 +769,7 @@ export default function PayoutDashboard() {
                 </div>
               )}
             </div>
-            
+
             <div className="flex justify-end mt-6">
               <button
                 onClick={() => setShowBankAccountModal(false)}
@@ -790,7 +789,7 @@ export default function PayoutDashboard() {
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-semibold text-white mb-2">Request Withdrawal</h2>
             <p className="text-gray-400 mb-6">Available balance: ${earnings.availableForWithdrawal.toFixed(2)}</p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Amount ($)</label>
@@ -822,8 +821,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Account Number"
                   value={withdrawalForm.bankDetails.accountNumber}
-                  onChange={(e) => setWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, accountNumber: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -832,8 +831,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Routing Number"
                   value={withdrawalForm.bankDetails.routingNumber}
-                  onChange={(e) => setWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, routingNumber: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -842,8 +841,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Account Holder Name"
                   value={withdrawalForm.bankDetails.accountHolderName}
-                  onChange={(e) => setWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, accountHolderName: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -852,8 +851,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Bank Name"
                   value={withdrawalForm.bankDetails.bankName}
-                  onChange={(e) => setWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, bankName: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -863,15 +862,15 @@ export default function PayoutDashboard() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button 
+              <button
                 onClick={() => setIsWithdrawalModalOpen(false)}
                 className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
                 data-testid="button-cancel-withdrawal"
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleWithdrawalSubmit} 
+              <button
+                onClick={handleWithdrawalSubmit}
                 disabled={submittingWithdrawal}
                 className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
                 data-testid="button-submit-withdrawal"
@@ -889,7 +888,7 @@ export default function PayoutDashboard() {
           <div className="bg-gray-900 border border-gray-700 rounded-lg p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-semibold text-white mb-2">Withdraw Immediate Earnings (80%)</h2>
             <p className="text-gray-400 mb-6">Available balance: ${earnings.immediateEarnings.toFixed(2)}</p>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1">Amount ($)</label>
@@ -910,8 +909,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Account Number"
                   value={immediateWithdrawalForm.bankDetails.accountNumber}
-                  onChange={(e) => setImmediateWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setImmediateWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, accountNumber: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -920,8 +919,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Routing Number"
                   value={immediateWithdrawalForm.bankDetails.routingNumber}
-                  onChange={(e) => setImmediateWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setImmediateWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, routingNumber: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -930,8 +929,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Account Holder Name"
                   value={immediateWithdrawalForm.bankDetails.accountHolderName}
-                  onChange={(e) => setImmediateWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setImmediateWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, accountHolderName: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -940,8 +939,8 @@ export default function PayoutDashboard() {
                 <input
                   placeholder="Bank Name"
                   value={immediateWithdrawalForm.bankDetails.bankName}
-                  onChange={(e) => setImmediateWithdrawalForm(prev => ({ 
-                    ...prev, 
+                  onChange={(e) => setImmediateWithdrawalForm(prev => ({
+                    ...prev,
                     bankDetails: { ...prev.bankDetails, bankName: e.target.value }
                   }))}
                   className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500"
@@ -951,15 +950,15 @@ export default function PayoutDashboard() {
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button 
+              <button
                 onClick={() => setIsImmediateWithdrawalModalOpen(false)}
                 className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
                 data-testid="button-cancel-immediate-withdrawal"
               >
                 Cancel
               </button>
-              <button 
-                onClick={handleImmediateWithdrawalSubmit} 
+              <button
+                onClick={handleImmediateWithdrawalSubmit}
                 disabled={submittingImmediateWithdrawal}
                 className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
                 data-testid="button-submit-immediate-withdrawal"

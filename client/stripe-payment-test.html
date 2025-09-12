@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Tribe - Ticket Payment</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #2D3748;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #4A5568;
+        }
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #E2E8F0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .btn {
+            background-color: #3182CE;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+        }
+        .btn:hover {
+            background-color: #2C5282;
+        }
+        .btn:disabled {
+            background-color: #A0AEC0;
+            cursor: not-allowed;
+        }
+        #card-element {
+            border: 1px solid #E2E8F0;
+            border-radius: 4px;
+            padding: 12px;
+        }
+        #card-errors {
+            color: #E53E3E;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .result-message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .result-message.success {
+            background-color: #C6F6D5;
+            color: #22543D;
+        }
+        .result-message.error {
+            background-color: #FED7D7;
+            color: #822727;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Event Ticket Purchase</h1>
+        
+        <div class="form-group">
+            <label for="event-select">Select Event:</label>
+            <select id="event-select" class="form-control">
+                <option value="" selected disabled>Choose an event...</option>
+                <!-- Events will be loaded dynamically -->
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="ticket-type">Ticket Type:</label>
+            <select id="ticket-type" class="form-control">
+                <option value="general">General Admission - $50</option>
+                <option value="vip">VIP - $100</option>
+                <option value="premium">Premium - $150</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="quantity">Quantity:</label>
+            <input type="number" id="quantity" class="form-control" value="1" min="1" max="10">
+        </div>
+        
+        <div class="form-group">
+            <label for="card-element">Credit or debit card:</label>
+            <div id="card-element"></div>
+            <div id="card-errors" role="alert"></div>
+        </div>
+        
+        <button id="submit-button" class="btn">Pay Now</button>
+        
+        <div id="result-message" class="result-message" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Initialize Stripe with the publishable key
+        const stripe = Stripe('pk_test_51Pk5D1H6mmMoS4kd6Awrn8JkVVUBFuVOYYRz8YNTEpcrpbS9YwMdFj4UiyoFfhsNKwJBxm0PdQ5NGNVYrQ9NSjk900jYKfCMp9');
+        const elements = stripe.elements();
+        
+        // Create the card Element
+        const cardElement = elements.create('card');
+        cardElement.mount('#card-element');
+
+        // Handle validation errors
+        cardElement.on('change', ({ error }) => {
+            const displayError = document.getElementById('card-errors');
+            if (error) {
+                displayError.textContent = error.message;
+            } else {
+                displayError.textContent = '';
+            }
+        });
+
+        // Load events from API
+        async function loadEvents() {
+            try {
+                const response = await fetch('/api/events');
+                const data = await response.json();
+                
+                const eventSelect = document.getElementById('event-select');
+                data.forEach(event => {
+                    const option = document.createElement('option');
+                    option.value = event._id;
+                    option.textContent = event.title;
+                    eventSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading events:', error);
+                // Add sample events for testing
+                const eventSelect = document.getElementById('event-select');
+                const sampleEvents = [
+                    { _id: 'sample1', title: 'Summer Music Festival 2023' },
+                    { _id: 'sample2', title: 'Tech Conference 2023' },
+                    { _id: 'sample3', title: 'Food & Wine Expo' }
+                ];
+                
+                sampleEvents.forEach(event => {
+                    const option = document.createElement('option');
+                    option.value = event._id;
+                    option.textContent = event.title;
+                    eventSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Handle form submission
+        const form = document.getElementById('submit-button');
+        form.addEventListener('click', async (event) => {
+            event.preventDefault();
+            form.disabled = true;
+            
+            // Get selected values
+            const eventId = document.getElementById('event-select').value;
+            const eventTitle = document.getElementById('event-select').options[document.getElementById('event-select').selectedIndex].text;
+            const ticketType = document.getElementById('ticket-type').value;
+            const quantity = parseInt(document.getElementById('quantity').value);
+            
+            // Calculate amount based on ticket type
+            let baseAmount = 50; // Default to general admission price
+            if (ticketType === 'vip') baseAmount = 100;
+            if (ticketType === 'premium') baseAmount = 150;
+            
+            const totalAmount = baseAmount * quantity;
+            
+            try {
+                // Create payment intent on the server
+                const paymentIntentResponse = await fetch('/api/create-payment-intent', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        amount: totalAmount,
+                        eventId: eventId,
+                        eventTitle: eventTitle,
+                        ticketDetails: {
+                            ticketType: ticketType,
+                            quantity: quantity
+                        }
+                    })
+                });
+                
+                const paymentIntentData = await paymentIntentResponse.json();
+                
+                if (paymentIntentResponse.status !== 200) {
+                    throw new Error(paymentIntentData.message || 'Error creating payment intent');
+                }
+                
+                // Confirm the payment with Stripe
+                const { error, paymentIntent } = await stripe.confirmCardPayment(
+                    paymentIntentData.clientSecret,
+                    {
+                        payment_method: {
+                            card: cardElement,
+                            billing_details: {
+                                name: 'Test Customer'
+                            }
+                        }
+                    }
+                );
+                
+                if (error) {
+                    // Show error message
+                    const resultMessage = document.getElementById('result-message');
+                    resultMessage.textContent = error.message;
+                    resultMessage.className = 'result-message error';
+                    resultMessage.style.display = 'block';
+                } else if (paymentIntent.status === 'succeeded') {
+                    // Confirm on our server
+                    const confirmResponse = await fetch('/api/confirm-payment', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            paymentIntentId: paymentIntent.id
+                        })
+                    });
+                    
+                    const confirmData = await confirmResponse.json();
+                    
+                    // Show success message
+                    const resultMessage = document.getElementById('result-message');
+                    resultMessage.textContent = 'Payment succeeded! Your tickets have been reserved.';
+                    resultMessage.className = 'result-message success';
+                    resultMessage.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Payment error:', error);
+                const resultMessage = document.getElementById('result-message');
+                resultMessage.textContent = error.message || 'An error occurred during payment.';
+                resultMessage.className = 'result-message error';
+                resultMessage.style.display = 'block';
+            } finally {
+                form.disabled = false;
+            }
+        });
+        
+        // Load events when page loads
+        document.addEventListener('DOMContentLoaded', loadEvents);
+    </script>
+</body>
+</html>

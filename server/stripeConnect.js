@@ -13,6 +13,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 class StripeConnectService {
   constructor() {
     this.stripe = stripe;
+    
+    // Log confirmation that Stripe is properly initialized
+    console.log('🔔 Stripe Connect service initialized with API key:', 
+      process.env.STRIPE_SECRET_KEY ? `${process.env.STRIPE_SECRET_KEY.substring(0, 8)}...` : 'Missing API key');
   }
 
   /**

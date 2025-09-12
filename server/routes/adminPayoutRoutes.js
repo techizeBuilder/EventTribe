@@ -2,7 +2,7 @@ import express from 'express';
 import { stripeConnectService } from '../stripeConnect.js';
 import { mongoStorage } from '../mongodb-storage.js';
 import { ObjectId } from 'mongodb';
-import { isAdmin } from '../middleware/auth.js';
+import { isAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
