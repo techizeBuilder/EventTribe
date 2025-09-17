@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Complete API Routes for Organizer Dashboard
  * All endpoints for comprehensive event management platform
  */
@@ -9,7 +9,7 @@ import { authenticateToken, requireRole, requireVerification } from '../middlewa
 import { sampleDataService } from '../services/sampleDataService.js';
 import { payoutService } from '../services/payoutService.js';
 import { mongoSupportTicketService } from '../services/mongoSupportTicketService.js';
-// import cleanBankAccountRouter from './cleanBankAccountRoutes.js';
+import cleanBankAccountRouter from './cleanBankAccountRoutes.js';
 
 const router = express.Router();
 
@@ -1345,7 +1345,7 @@ router.get('/disputes', async (req, res) => {
     const stats = {
       needResponse,
       disputeRate: `${disputeRate}%`,
-      moneyOnHold: `₹ ${moneyOnHold.toFixed(2)}`,
+      moneyOnHold: `â‚¹ ${moneyOnHold.toFixed(2)}`,
       winRate: `${winRate}%`
     };
 
@@ -2211,11 +2211,3 @@ router.put('/support/tickets/:id/mark-read', async (req, res) => {
     res.status(500).json({ message: 'Failed to mark messages as read' });
   }
 });
-
-// ==================== BANK ACCOUNT MANAGEMENT ====================
-
-// Import clean bank account routes
-import cleanBankAccountRouter from './cleanBankAccountRoutes.js';
-router.use('/bank-accounts', cleanBankAccountRouter);
-
-export default router;

@@ -195,6 +195,86 @@ class StripeConnectService {
       throw error;
     }
   }
+
+  /**
+   * Create a US Bank Account Payment Method
+   */
+  async createBankPaymentMethod({ accountNumber, routingNumber, accountHolderName, accountHolderType }) {
+    try {
+      const paymentMethod = await this.stripe.paymentMethods.create({
+        type: 'us_bank_account',
+        us_bank_account: {
+          account_number: accountNumber,
+          routing_number: routingNumber,
+          account_holder_type: accountHolderType
+        },
+        billing_details: {
+          name: accountHolderName
+        }
+      });
+
+      console.log(`[Stripe Connect] Created Payment Method ${paymentMethod.id} for bank account ending in ${accountNumber.slice(-4)}`);
+      return paymentMethod;
+    } catch (error) {
+      console.error('[Stripe Connect] Error creating bank payment method:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Attach bank account to Connect Account as external account
+   */
+  async attachBankToConnectAccount(accountId, paymentMethodId) {
+    try {
+      const externalAccount = await this.stripe.accounts.createExternalAccount(accountId, {
+        external_account: paymentMethodId
+      });
+
+      console.log(`[Stripe Connect] Attached bank account ${externalAccount.id} to Connect account ${accountId}`);
+      return externalAccount;
+    } catch (error) {
+      console.error('[Stripe Connect] Error attaching bank to Connect account:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Verify bank account with micro-deposits
+   */
+  async verifyBankAccount(accountId, externalAccountId, amounts) {
+    try {
+      const verification = await this.stripe.accounts.verifyExternalAccount(
+        accountId,
+        externalAccountId,
+        {
+          amounts: amounts
+        }
+      );
+
+      console.log(`[Stripe Connect] Bank account ${externalAccountId} verification result: ${verification.status}`);
+      return verification;
+    } catch (error) {
+      console.error('[Stripe Connect] Error verifying bank account:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get external account details
+   */
+  async getExternalAccount(accountId, externalAccountId) {
+    try {
+      const externalAccount = await this.stripe.accounts.retrieveExternalAccount(
+        accountId,
+        externalAccountId
+      );
+
+      return externalAccount;
+    } catch (error) {
+      console.error('[Stripe Connect] Error retrieving external account:', error);
+      throw error;
+    }
+  }
 }
 
 export const stripeConnectService = new StripeConnectService();

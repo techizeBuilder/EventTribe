@@ -48,9 +48,20 @@ export default function PayoutDashboard() {
     accountNumber: '',
     routingNumber: '',
     accountHolderName: '',
+    accountHolderType: 'individual',
     accountType: 'checking'
   });
   const [addingBankAccount, setAddingBankAccount] = useState(false);
+  const [verificationModal, setVerificationModal] = useState({
+    isOpen: false,
+    bankAccountId: null,
+    bankAccountInfo: null
+  });
+  const [verificationForm, setVerificationForm] = useState({
+    amount1: '',
+    amount2: ''
+  });
+  const [verifyingAccount, setVerifyingAccount] = useState(false);
 
   useEffect(() => {
     fetchEarnings();
@@ -140,6 +151,18 @@ export default function PayoutDashboard() {
         return;
       }
 
+      // Validate routing number (9 digits)
+      if (!/^\d{9}$/.test(bankAccountForm.routingNumber)) {
+        toast.error('Routing number must be exactly 9 digits');
+        return;
+      }
+
+      // Validate account number (4-17 digits)
+      if (!/^\d{4,17}$/.test(bankAccountForm.accountNumber)) {
+        toast.error('Account number must be 4-17 digits');
+        return;
+      }
+
       const response = await fetch('/api/organizer/bank-accounts', {
         method: 'POST',
         headers: {
@@ -152,16 +175,18 @@ export default function PayoutDashboard() {
       const data = await response.json();
 
       if (response.ok) {
-        toast.success('Bank account added successfully!');
+        toast.success('Bank account added successfully! Verification pending.');
         setBankAccountForm({
           accountNumber: '',
           routingNumber: '',
           accountHolderName: '',
+          accountHolderType: 'individual',
           accountType: 'checking'
         });
+        setShowBankAccountModal(false);
         fetchBankAccounts();
       } else {
-        toast.error(data.message || 'Failed to add bank account');
+        toast.error(data.error || data.message || 'Failed to add bank account');
       }
     } catch (error) {
       console.error('Error adding bank account:', error);
@@ -169,6 +194,61 @@ export default function PayoutDashboard() {
     } finally {
       setAddingBankAccount(false);
     }
+  };
+
+  const handleVerifyBankAccount = async () => {
+    try {
+      setVerifyingAccount(true);
+
+      if (!verificationForm.amount1 || !verificationForm.amount2) {
+        toast.error('Please enter both verification amounts');
+        return;
+      }
+
+      const amounts = [
+        parseInt(verificationForm.amount1),
+        parseInt(verificationForm.amount2)
+      ];
+
+      // Validate amounts
+      if (amounts.some(amount => isNaN(amount) || amount < 1 || amount > 99)) {
+        toast.error('Verification amounts must be between 1 and 99 cents');
+        return;
+      }
+
+      const response = await fetch(`/api/organizer/bank-accounts/${verificationModal.bankAccountId}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ amounts })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success('Bank account verified successfully!');
+        setVerificationModal({ isOpen: false, bankAccountId: null, bankAccountInfo: null });
+        setVerificationForm({ amount1: '', amount2: '' });
+        fetchBankAccounts();
+      } else {
+        toast.error(data.error || data.message || 'Verification failed');
+      }
+    } catch (error) {
+      console.error('Error verifying bank account:', error);
+      toast.error('Failed to verify bank account');
+    } finally {
+      setVerifyingAccount(false);
+    }
+  };
+
+  const openVerificationModal = (bankAccount) => {
+    setVerificationModal({
+      isOpen: true,
+      bankAccountId: bankAccount.id,
+      bankAccountInfo: bankAccount
+    });
   };
 
   const handleDeleteBankAccount = async (accountId) => {
@@ -630,6 +710,20 @@ export default function PayoutDashboard() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-1">Account Holder Type *</label>
+                  <select
+                    value={bankAccountForm.accountHolderType}
+                    onChange={(e) => setBankAccountForm(prev => ({ ...prev, accountHolderType: e.target.value }))}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    data-testid="select-account-holder-type"
+                    required
+                  >
+                    <option value="individual">Individual</option>
+                    <option value="company">Company</option>
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-300 mb-1">Account Type *</label>
                   <select
                     value={bankAccountForm.accountType}
@@ -638,7 +732,7 @@ export default function PayoutDashboard() {
                     data-testid="select-account-type"
                     required
                   >
-                    <option value="current">Current Account</option>
+                    <option value="checking">Checking Account</option>
                     <option value="savings">Savings Account</option>
                   </select>
                 </div>
@@ -713,59 +807,85 @@ export default function PayoutDashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {bankAccounts.map((account, index) => (
-                    <div
-                      key={account.id}
-                      className={`p-4 border rounded-lg ${account.isDefault
+                  {bankAccounts.map((account, index) => {
+                    return (
+                      <div
+                        key={account.id}
+                        className={`p-4 border rounded-lg ${account.isDefault
                           ? 'border-blue-500 bg-blue-900/20'
                           : 'border-gray-700 bg-gray-800'
-                        }`}
-                      data-testid={`bank-account-${index}`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <CreditCard className="w-5 h-5 text-gray-400" />
-                            <div>
-                              <p className="font-medium text-white">
-                                {account.bankName || 'Bank Account'} ****{account.last4}
-                              </p>
-                              <p className="text-sm text-gray-400">
-                                {account.accountHolderName} • {account.accountType?.charAt(0).toUpperCase() + account.accountType?.slice(1)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                Routing: {account.routingNumber}
-                              </p>
+                          }`}
+                        data-testid={`bank-account-${index}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              <CreditCard className="w-5 h-5 text-gray-400" />
+                              <div>
+                                <p className="font-medium text-white">
+                                  {account.bankName || 'Bank Account'} ****{account.last4}
+                                </p>
+                                <p className="text-sm text-gray-400">
+                                  {account.accountHolderName} • {account.accountHolderType?.charAt(0).toUpperCase() + account.accountHolderType?.slice(1)} • {account.accountType?.charAt(0).toUpperCase() + account.accountType?.slice(1)}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Routing: {account.routingNumber}
+                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  {account.verified === true && account.verificationStatus === 'verified' ? (
+                                    <span className="px-2 py-1 bg-green-600 text-green-100 text-xs rounded-full font-medium flex items-center gap-1">
+                                      <CheckCircle className="w-3 h-3" />
+                                      Verified
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-1 bg-yellow-600 text-yellow-100 text-xs rounded-full font-medium flex items-center gap-1">
+                                      <AlertCircle className="w-3 h-3" />
+                                      Pending Verification
+                                    </span>
+                                  )}
+                                  {account.isDefault && (
+                                    <span className="px-2 py-1 bg-blue-600 text-blue-100 text-xs rounded-full font-medium">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
                             </div>
-                            {account.isDefault && (
-                              <span className="px-2 py-1 bg-blue-600 text-blue-100 text-xs rounded-full font-medium">
-                                Default
-                              </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 ml-4">
+                            {/* Show verify button for unverified accounts - handle missing fields gracefully */}
+                            {(account.verified !== true && account.verificationStatus !== 'verified') && (
+                              <button
+                                onClick={() => openVerificationModal(account)}
+                                className="text-yellow-400 hover:text-yellow-300 text-sm px-3 py-1 border border-yellow-600 rounded-lg transition-colors"
+                                data-testid={`button-verify-${index}`}
+                              >
+                                Verify
+                              </button>
                             )}
+                            {/* Show Set Default button only for verified accounts that are not already default */}
+                            {!account.isDefault && account.verified === true && account.verificationStatus === 'verified' && (
+                              <button
+                                onClick={() => handleSetDefaultBankAccount(account.id)}
+                                className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 border border-blue-600 rounded-lg transition-colors"
+                                data-testid={`button-set-default-${index}`}
+                              >
+                                Set Default
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteBankAccount(account.id)}
+                              className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors"
+                              data-testid={`button-delete-account-${index}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
                         </div>
-
-                        <div className="flex items-center gap-2 ml-4">
-                          {!account.isDefault && (
-                            <button
-                              onClick={() => handleSetDefaultBankAccount(account.id)}
-                              className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 border border-blue-600 rounded-lg transition-colors"
-                              data-testid={`button-set-default-${index}`}
-                            >
-                              Set Default
-                            </button>
-                          )}
-                          <button
-                            onClick={() => handleDeleteBankAccount(account.id)}
-                            className="text-red-400 hover:text-red-300 p-2 rounded-lg transition-colors"
-                            data-testid={`button-delete-account-${index}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -964,6 +1084,91 @@ export default function PayoutDashboard() {
                 data-testid="button-submit-immediate-withdrawal"
               >
                 {submittingImmediateWithdrawal ? 'Processing...' : 'Withdraw Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bank Account Verification Modal */}
+      {verificationModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4">
+            <h2 className="text-xl font-semibold text-white mb-4">
+              Verify Bank Account
+            </h2>
+
+            <div className="mb-4 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertCircle className="w-4 h-4 text-blue-400" />
+                <p className="text-sm text-blue-300 font-medium">Micro-Deposit Verification</p>
+              </div>
+              <p className="text-xs text-gray-300">
+                Stripe has sent two small deposits to your bank account ending in ****{verificationModal.bankAccountInfo?.last4}.
+                Please check your bank statement and enter the exact amounts below.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  First Deposit Amount (cents) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={verificationForm.amount1}
+                  onChange={(e) => setVerificationForm(prev => ({ ...prev, amount1: e.target.value }))}
+                  placeholder="e.g., 32"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  data-testid="input-verification-amount-1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">
+                  Second Deposit Amount (cents) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={verificationForm.amount2}
+                  onChange={(e) => setVerificationForm(prev => ({ ...prev, amount2: e.target.value }))}
+                  placeholder="e.g., 45"
+                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  data-testid="input-verification-amount-2"
+                />
+              </div>
+
+              {verificationModal.bankAccountInfo?.verificationAttempts > 0 && (
+                <div className="p-3 bg-yellow-900/20 border border-yellow-700 rounded-lg">
+                  <p className="text-xs text-yellow-300">
+                    Attempts remaining: {3 - verificationModal.bankAccountInfo.verificationAttempts}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setVerificationModal({ isOpen: false, bankAccountId: null, bankAccountInfo: null });
+                  setVerificationForm({ amount1: '', amount2: '' });
+                }}
+                className="flex-1 px-4 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-800 transition-colors"
+                data-testid="button-cancel-verification"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleVerifyBankAccount}
+                disabled={verifyingAccount || !verificationForm.amount1 || !verificationForm.amount2}
+                className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors"
+                data-testid="button-submit-verification"
+              >
+                {verifyingAccount ? 'Verifying...' : 'Verify Account'}
               </button>
             </div>
           </div>

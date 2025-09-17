@@ -11,7 +11,7 @@ router.get('/payout-requests', isAdmin, async (req, res) => {
   try {
     await mongoStorage.connect();
     const pendingPayoutsCollection = mongoStorage.db.collection('pending_payouts');
-    
+
     const requests = await pendingPayoutsCollection
       .find({ status: 'pending' })
       .sort({ createdAt: -1 })

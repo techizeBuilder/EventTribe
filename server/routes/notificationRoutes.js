@@ -180,7 +180,7 @@ testEmailConnection().catch(err => {
 router.post('/test-email', async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -198,16 +198,16 @@ router.post('/test-email', async (req, res) => {
 
     // Send test email to attendee
     await sendAttendeeEmail(testBookingData);
-    
-    res.json({ 
+
+    res.json({
       message: 'Test email sent successfully',
-      email: email 
+      email: email
     });
   } catch (error) {
     console.error('Error sending test email:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to send test email',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -228,16 +228,16 @@ router.post('/test-purchase', async (req, res) => {
 
     // Trigger the complete notification workflow
     await triggerTicketPurchaseNotification(testBookingData);
-    
-    res.json({ 
+
+    res.json({
       message: 'Complete ticket purchase notification sent successfully',
       bookingData: testBookingData
     });
   } catch (error) {
     console.error('Error sending ticket purchase notification:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Failed to send ticket purchase notification',
-      error: error.message 
+      error: error.message
     });
   }
 });
@@ -251,7 +251,7 @@ export async function triggerTicketPurchaseNotification(bookingData) {
     // Get event details to find organizer
     const eventsCollection = mongoStorage.db.collection('events');
     const event = await eventsCollection.findOne({ _id: new ObjectId(bookingData.eventId) });
-    
+
     if (!event) {
       console.error('Event not found for notification');
       return;
@@ -260,7 +260,7 @@ export async function triggerTicketPurchaseNotification(bookingData) {
     // Get organizer details
     const usersCollection = mongoStorage.db.collection('auth_users');
     const organizer = await usersCollection.findOne({ _id: new ObjectId(event.organizerId) });
-    
+
     if (!organizer) {
       console.error('Organizer not found for notification');
       return;
@@ -270,7 +270,7 @@ export async function triggerTicketPurchaseNotification(bookingData) {
     const userTitle = "Ticket Purchase Successful";
     const userMessage = `You have successfully purchased a ticket for ${bookingData.eventTitle}.`;
     await createNotification(mongoStorage, bookingData.userEmail, userTitle, userMessage);
-    
+
     // Send Mailtrap email to attendee
     await sendAttendeeEmail(bookingData);
 
@@ -278,7 +278,7 @@ export async function triggerTicketPurchaseNotification(bookingData) {
     const organizerTitle = "New Ticket Purchase";
     const organizerMessage = `${bookingData.userName} purchased a ticket for your event ${bookingData.eventTitle}.`;
     await createNotification(mongoStorage, organizer.email, organizerTitle, organizerMessage);
-    
+
     // Send Mailtrap email to organizer
     await sendOrganizerEmail(bookingData, organizer.email);
 
@@ -292,7 +292,7 @@ export async function triggerTicketPurchaseNotification(bookingData) {
 router.get('/', async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -322,7 +322,7 @@ router.get('/', async (req, res) => {
 router.get('/organizer', async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -337,7 +337,7 @@ router.get('/organizer', async (req, res) => {
 
     const notificationsCollection = mongoStorage.db.collection('notifications');
     const notifications = await notificationsCollection
-      .find({ 
+      .find({
         recipientEmail: email,
         type: 'purchase'
       })
@@ -355,7 +355,7 @@ router.get('/organizer', async (req, res) => {
 router.get('/unread-count', async (req, res) => {
   try {
     const { email } = req.query;
-    
+
     if (!email) {
       return res.status(400).json({ message: 'Email is required' });
     }
@@ -369,9 +369,9 @@ router.get('/unread-count', async (req, res) => {
     }
 
     const notificationsCollection = mongoStorage.db.collection('notifications');
-    const count = await notificationsCollection.countDocuments({ 
+    const count = await notificationsCollection.countDocuments({
       recipientEmail: email,
-      isRead: false 
+      isRead: false
     });
 
     res.json({ count });
@@ -397,8 +397,8 @@ router.post('/:id/read', async (req, res) => {
     const notificationsCollection = mongoStorage.db.collection('notifications');
     await notificationsCollection.updateOne(
       { _id: new ObjectId(id) },
-      { 
-        $set: { 
+      {
+        $set: {
           isRead: true,
           updatedAt: new Date()
         }
@@ -432,8 +432,8 @@ router.post('/mark-all-read', async (req, res) => {
     const notificationsCollection = mongoStorage.db.collection('notifications');
     await notificationsCollection.updateMany(
       { recipientEmail: email },
-      { 
-        $set: { 
+      {
+        $set: {
           isRead: true,
           updatedAt: new Date()
         }

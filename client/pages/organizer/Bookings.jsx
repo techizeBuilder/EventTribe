@@ -14,6 +14,7 @@ import {
   FiClock,
   FiChevronLeft,
   FiChevronRight,
+  FiLoader,
 } from "react-icons/fi";
 import toast from "react-hot-toast";
 import { authService } from "../../services/authService.js";
@@ -28,6 +29,13 @@ export default function Bookings() {
   const [events, setEvents] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  
+  // Verification modal state
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [collectedAmount, setCollectedAmount] = useState("");
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -300,6 +308,65 @@ export default function Bookings() {
     }
   };
 
+  // Verification handlers
+  const handleVerifyCode = (booking) => {
+    setSelectedBooking(booking);
+    setVerificationCode("");
+    setCollectedAmount(booking.totalAmount || booking.amount || "");
+    setShowVerificationModal(true);
+  };
+
+  const handleVerificationSubmit = async () => {
+    if (!verificationCode.trim()) {
+      toast.error("Please enter the verification code");
+      return;
+    }
+
+    if (!collectedAmount || parseFloat(collectedAmount) <= 0) {
+      toast.error("Please enter a valid collected amount");
+      return;
+    }
+
+    setVerificationLoading(true);
+
+    try {
+      const response = await authService.apiRequest("/api/verify-booking-code", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          bookingCode: verificationCode.trim().toUpperCase(),
+          collectedAmount: parseFloat(collectedAmount),
+          organizerId: selectedBooking?.organizerId,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        toast.success("Booking verified and payment collected successfully!");
+        setShowVerificationModal(false);
+        // Refresh bookings to show updated status
+        fetchBookings();
+      } else {
+        toast.error(data.message || "Failed to verify booking code");
+      }
+    } catch (error) {
+      console.error("Error verifying booking code:", error);
+      toast.error("Failed to verify booking code");
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  const closeVerificationModal = () => {
+    setShowVerificationModal(false);
+    setSelectedBooking(null);
+    setVerificationCode("");
+    setCollectedAmount("");
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -551,13 +618,26 @@ export default function Bookings() {
                       </span>
                     </td>
                     <td className="p-4">
-                      <button
-                        onClick={() => handleViewDetails(booking._id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
-                      >
-                        <FiEye className="w-4 h-4" />
-                        <span>View</span>
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleViewDetails(booking._id)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+                        >
+                          <FiEye className="w-4 h-4" />
+                          <span>View</span>
+                        </button>
+                        
+                        {/* Show verification button for pay later bookings */}
+                        {(booking.paymentMethod === 'pay_later' || booking.status === 'pending_verification') && (
+                          <button
+                            onClick={() => handleVerifyCode(booking)}
+                            className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1"
+                          >
+                            <FiCheck className="w-4 h-4" />
+                            <span>Verify</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -638,6 +718,113 @@ export default function Bookings() {
           </div>
         )}
       </div>
+
+      {/* Verification Modal */}
+      {showVerificationModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl max-w-md w-full border border-gray-700">
+            <div className="p-6 border-b border-gray-800">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white">Verify Booking Code</h2>
+                <button
+                  onClick={closeVerificationModal}
+                  className="p-2 text-gray-400 hover:text-white transition-colors"
+                >
+                  <FiX className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {selectedBooking && (
+                <div className="bg-gray-800 rounded-lg p-4 mb-6">
+                  <h3 className="text-white font-semibold mb-2">Event Details</h3>
+                  <p className="text-gray-300 text-sm mb-1">
+                    <strong>Event:</strong> {selectedBooking.eventTitle}
+                  </p>
+                  <p className="text-gray-300 text-sm mb-1">
+                    <strong>Attendee:</strong> {selectedBooking.userName || selectedBooking.attendeeName}
+                  </p>
+                  <p className="text-gray-300 text-sm mb-1">
+                    <strong>Email:</strong> {selectedBooking.userEmail || selectedBooking.attendeeEmail}
+                  </p>
+                  <p className="text-gray-300 text-sm">
+                    <strong>Expected Amount:</strong> ${selectedBooking.totalAmount || selectedBooking.amount}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Verification Code (OTP)
+                  </label>
+                  <input
+                    type="text"
+                    value={verificationCode}
+                    onChange={(e) => setVerificationCode(e.target.value.toUpperCase())}
+                    placeholder="Enter 8-character code"
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                    maxLength={8}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Amount Collected ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={collectedAmount}
+                    onChange={(e) => setCollectedAmount(e.target.value)}
+                    placeholder="Enter collected amount"
+                    className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+
+                <div className="bg-yellow-900/30 border border-yellow-600 rounded-lg p-3">
+                  <p className="text-yellow-400 text-sm">
+                    <strong>Instructions:</strong>
+                    <br />
+                    1. Ask attendee to show their verification code
+                    <br />
+                    2. Verify their ID matches the booking
+                    <br />
+                    3. Collect payment in cash
+                    <br />
+                    4. Enter the code and amount above
+                  </p>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    onClick={closeVerificationModal}
+                    disabled={verificationLoading}
+                    className="flex-1 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 text-white font-medium py-3 px-4 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleVerificationSubmit}
+                    disabled={verificationLoading}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+                  >
+                    {verificationLoading ? (
+                      <>
+                        <FiLoader className="w-4 h-4 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <span>Verify & Collect</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -103,15 +103,15 @@ function AppContent() {
             <Route path="events" element={<ManageEvents />} />
             <Route path="bookings" element={<Bookings />} />
             <Route path="bookings/:bookingId" element={
-                <ProtectedRoute requiredRole="organizer">
-                  <BookingDetails />
-                </ProtectedRoute>
-              } />
-              <Route path="/organizer/earnings" element={
-                <ProtectedRoute requiredRole="organizer">
-                  <Earnings />
-                </ProtectedRoute>
-              } />
+              <ProtectedRoute requiredRole="organizer">
+                <BookingDetails />
+              </ProtectedRoute>
+            } />
+            <Route path="/organizer/earnings" element={
+              <ProtectedRoute requiredRole="organizer">
+                <Earnings />
+              </ProtectedRoute>
+            } />
             <Route path="users" element={<ManageUser />} />
             <Route path="marketing" element={<Marketing />} />
             <Route path="audience" element={<Audience />} />

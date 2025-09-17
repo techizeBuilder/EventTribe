@@ -156,6 +156,61 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
     }
   };
 
+  const handlePayLater = async () => {
+    setLoading(true);
+
+    try {
+      const cartItems = getCartSummary();
+      const totalAmount = getTotalPrice();
+
+      console.log("Processing pay later booking:", {
+        cartItems,
+        totalAmount,
+        userEmail,
+        userName,
+      });
+
+      // Create pay later booking
+      const response = await fetch("/api/create-pay-later-booking", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: cartItems,
+          amount: totalAmount,
+          userEmail,
+          userName,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Clear cart and notify success
+        await clearCart();
+        console.log('Cart cleared after pay later booking');
+        toast.success("Booking confirmed! Check your email for the verification code.");
+        onSuccess({
+          payLater: true,
+          bookings: data.bookings,
+          bookingCodes: data.bookingCodes
+        });
+      } else {
+        throw new Error(data.message || "Failed to create pay later booking");
+      }
+    } catch (error) {
+      console.error("Pay later booking error:", error);
+      toast.error("Failed to create booking. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCardChange = (field) => (event) => {
     setCardErrors((prev) => ({
       ...prev,
@@ -268,20 +323,40 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={!stripe || loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <FiLoader className="w-4 h-4 animate-spin" />
-                  <span>Processing...</span>
-                </>
-              ) : (
-                <span>Pay ${totalAmount.toFixed(2)}</span>
-              )}
-            </button>
+            <div className="space-y-3">
+              <button
+                type="submit"
+                disabled={!stripe || loading}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <FiLoader className="w-4 h-4 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <span>Pay ${totalAmount.toFixed(2)}</span>
+                )}
+              </button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-600"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-gray-900 text-gray-400">or</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handlePayLater}
+                disabled={loading}
+                className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              >
+                <span>Pay Later at Event</span>
+              </button>
+            </div>
           </form>
         </div>
       </motion.div>
@@ -289,17 +364,21 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
   );
 }
 
-export default function MultiEventPaymentModal({ isOpen, onClose }) {
+export default function MultiEventPaymentModal({ isOpen, onClose, onSuccess }) {
   const { clearCart } = useCart();
 
   if (!isOpen) return null;
 
   const handleSuccess = (paymentResult) => {
     console.log("Payment successful:", paymentResult);
-    toast.success("Payment successful! All tickets confirmed.");
-
-    // Cart is already cleared in the payment form, don't clear again
-    onClose();
+    
+    // Call the parent's onSuccess if provided, otherwise use default behavior
+    if (onSuccess) {
+      onSuccess(paymentResult);
+    } else {
+      toast.success("Payment successful! All tickets confirmed.");
+      onClose();
+    }
   };
 
   return (

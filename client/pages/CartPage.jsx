@@ -63,7 +63,7 @@ export default function CartPage() {
       toast.error('Your cart is empty')
       return
     }
-    
+
     // Show payment modal for checkout
     setShowPaymentModal(true)
   }
@@ -147,7 +147,7 @@ export default function CartPage() {
                       <p className="text-slate-400 text-sm mb-4">
                         {item.ticketType.description}
                       </p>
-                      
+
                       {/* Quantity Controls */}
                       <div className="flex items-center space-x-4">
                         <div className="flex items-center space-x-2">
@@ -167,7 +167,7 @@ export default function CartPage() {
                             <FiPlus className="w-4 h-4" />
                           </button>
                         </div>
-                        
+
                         <button
                           onClick={() => handleRemoveItem(item._id)}
                           className="text-red-400 hover:text-red-300 transition-colors flex items-center space-x-1"
@@ -177,7 +177,7 @@ export default function CartPage() {
                         </button>
                       </div>
                     </div>
-                    
+
                     <div className="text-right">
                       <p className="text-slate-400 text-sm">Price per ticket</p>
                       <p className="text-xl font-bold text-white mb-2">
@@ -201,18 +201,18 @@ export default function CartPage() {
                 className="bg-slate-800 rounded-lg p-6 border border-slate-700 sticky top-8"
               >
                 <h2 className="text-xl font-bold mb-6">Order Summary</h2>
-                
+
                 <div className="space-y-4 mb-6">
                   <div className="flex justify-between">
                     <span className="text-slate-400">Items ({cartItems?.length || 0})</span>
                     <span className="text-white">${calculateTotal().toFixed(2)}</span>
                   </div>
-                  
+
                   <div className="flex justify-between">
                     <span className="text-slate-400">Service Fee</span>
                     <span className="text-white">$2.50</span>
                   </div>
-                  
+
                   <div className="border-t border-slate-700 pt-4">
                     <div className="flex justify-between">
                       <span className="text-lg font-semibold text-white">Total</span>
@@ -222,14 +222,14 @@ export default function CartPage() {
                     </div>
                   </div>
                 </div>
-                
+
                 <button
                   onClick={handleCheckout}
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold transition-colors mb-4"
                 >
                   Proceed to Checkout
                 </button>
-                
+
                 <button
                   onClick={() => navigate('/')}
                   className="w-full bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-lg font-semibold transition-colors"
@@ -247,6 +247,19 @@ export default function CartPage() {
         <MultiEventPaymentModal
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
+          onSuccess={(result) => {
+            setShowPaymentModal(false);
+            // Force cart refresh after successful payment/booking
+            setTimeout(() => {
+              window.dispatchEvent(new CustomEvent('cartUpdated'));
+            }, 100);
+
+            if (result.payLater) {
+              toast.success("Pay Later booking confirmed! Check your email for verification codes.");
+            } else {
+              toast.success("Payment successful! Your tickets have been purchased.");
+            }
+          }}
         />
       )}
     </div>

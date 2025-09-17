@@ -159,6 +159,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test email configuration endpoint
+  app.get("/api/test-email", async (req, res) => {
+    try {
+      console.log('[EMAIL TEST] Testing email configuration...');
+      console.log('[EMAIL TEST] Current environment variables:');
+      console.log('[EMAIL TEST] MAIL_HOST:', process.env.MAIL_HOST);
+      console.log('[EMAIL TEST] MAIL_PORT:', process.env.MAIL_PORT);
+      console.log('[EMAIL TEST] MAIL_USERNAME:', process.env.MAIL_USERNAME);
+      console.log('[EMAIL TEST] MAIL_FROM_ADDRESS:', process.env.MAIL_FROM_ADDRESS);
+      
+      const { testEmailConnection } = await import("./services/emailService.js");
+      
+      const result = await testEmailConnection();
+      
+      if (result) {
+        res.json({
+          success: true,
+          message: "Email configuration is working correctly",
+          timestamp: new Date().toISOString(),
+          config: {
+            host: process.env.MAIL_HOST,
+            port: process.env.MAIL_PORT,
+            username: process.env.MAIL_USERNAME,
+            fromAddress: process.env.MAIL_FROM_ADDRESS
+          }
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: "Email configuration test failed",
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error("[EMAIL TEST] Error testing email:", error);
+      res.status(500).json({
+        success: false,
+        message: "Email test failed",
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Test Pay Later email endpoint
+  app.post("/api/test-pay-later-email", async (req, res) => {
+    try {
+      console.log('[EMAIL TEST] Testing Pay Later email...');
+      const { sendPayLaterBookingEmail } = await import("./services/emailService.js");
+      
+      const testEmailData = {
+        to: "jeetu.mj123@gmail.com",
+        userName: "Jeetu Test User",
+        bookings: [
+          {
+            eventTitle: "Test Event",
+            bookingCode: "TEST1234",
+            amount: 50,
+            ticketType: "General Admission",
+            quantity: 1
+          }
+        ],
+        totalAmount: 50
+      };
+
+      console.log('[EMAIL TEST] Sending test Pay Later email with data:', testEmailData);
+      await sendPayLaterBookingEmail(testEmailData);
+      
+      res.json({
+        success: true,
+        message: "Test Pay Later email sent successfully",
+        timestamp: new Date().toISOString(),
+        testData: testEmailData
+      });
+    } catch (error) {
+      console.error("[EMAIL TEST] Error sending test Pay Later email:", error);
+      res.status(500).json({
+        success: false,
+        message: "Test Pay Later email failed",
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   app.get("/api/server-info", async (req, res) => {
     try {
       const stats = await mongoStorage.getStats();
@@ -798,6 +883,284 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({
         success: false,
         error: "Failed to save booking",
+        message: error.message,
+      });
+    }
+  });
+
+  // Create Pay Later booking
+  app.post("/api/create-pay-later-booking", async (req, res) => {
+    try {
+      const { items, amount, userEmail, userName } = req.body;
+
+      console.log("Creating pay later booking:", {
+        items,
+        amount,
+        userEmail,
+        userName,
+      });
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid items"
+        });
+      }
+
+      if (!userEmail || !userName) {
+        return res.status(400).json({
+          success: false,
+          error: "User email and name are required"
+        });
+      }
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import("mongodb");
+
+      const bookingsCollection = mongoStorage.db.collection("bookings");
+      const savedBookings = [];
+      const bookingCodes = [];
+
+      // Create individual bookings for each item with unique codes
+      for (const item of items) {
+        const bookingId = `BK-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const bookingCode = Math.random().toString(36).substr(2, 8).toUpperCase(); // 8-character alphanumeric code
+
+        const booking = {
+          _id: new ObjectId(),
+          bookingId,
+          bookingCode, // Unique code for verification
+          eventId: item.eventId,
+          eventTitle: item.eventTitle,
+          ticketDetails: [
+            {
+              type: item.name,
+              price: item.price,
+              quantity: item.quantity,
+            },
+          ],
+          userEmail,
+          userName,
+          totalAmount: item.total,
+          currency: "usd",
+          status: "pending_verification", // New status for pay later
+          paymentStatus: "pending_offline", // New payment status
+          paymentMethod: "pay_later",
+          bookingDate: new Date(),
+          createdAt: new Date(),
+          codeUsed: false,
+          codeExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days expiry
+        };
+
+        const result = await bookingsCollection.insertOne(booking);
+        savedBookings.push({ ...booking, _id: result.insertedId });
+        bookingCodes.push({
+          eventTitle: item.eventTitle,
+          bookingCode,
+          amount: item.total,
+          ticketType: item.name,
+          quantity: item.quantity
+        });
+      }
+
+      // Send email with booking codes
+      try {
+        console.log('[PAY LATER] 📧 Preparing to send booking codes email...');
+        console.log('[PAY LATER] Email recipient:', userEmail);
+        console.log('[PAY LATER] User name:', userName);
+        console.log('[PAY LATER] Booking codes:', bookingCodes);
+        
+        const emailService = await import("./services/emailService.js");
+
+        // Prepare email data
+        const emailData = {
+          to: userEmail,
+          userName,
+          bookings: bookingCodes,
+          totalAmount: amount
+        };
+
+        console.log('[PAY LATER] 📤 Calling sendPayLaterBookingEmail...');
+        await emailService.sendPayLaterBookingEmail(emailData);
+        console.log(`[PAY LATER] ✅ Pay later booking email sent successfully to ${userEmail}`);
+      } catch (emailError) {
+        console.error("[PAY LATER] ❌ Failed to send pay later booking email:", emailError);
+        console.error("[PAY LATER] Email error details:", {
+          message: emailError.message,
+          stack: emailError.stack,
+          code: emailError.code
+        });
+        // Don't fail the booking if email fails
+      }
+
+      console.log(
+        `Created ${savedBookings.length} pay later bookings with codes`,
+      );
+
+      res.json({
+        success: true,
+        bookings: savedBookings,
+        bookingCodes,
+        message: `Successfully created ${savedBookings.length} pay later bookings`,
+      });
+    } catch (error: any) {
+      console.error("Error creating pay later booking:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to create pay later booking",
+        message: error.message,
+      });
+    }
+  });
+
+  // Verify booking code and mark as paid
+  app.post("/api/verify-booking-code", async (req, res) => {
+    try {
+      const { bookingCode, collectedAmount, organizerId } = req.body;
+
+      console.log("Verifying booking code:", {
+        bookingCode,
+        collectedAmount,
+        organizerId,
+      });
+
+      if (!bookingCode || !collectedAmount) {
+        return res.status(400).json({
+          success: false,
+          error: "Booking code and collected amount are required"
+        });
+      }
+
+      await mongoStorage.connect();
+      const { ObjectId } = await import("mongodb");
+
+      const bookingsCollection = mongoStorage.db.collection("bookings");
+
+      // Find booking by code
+      const booking = await bookingsCollection.findOne({
+        bookingCode: bookingCode.toUpperCase(),
+        codeUsed: false, // Ensure code hasn't been used
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: "Invalid or already used booking code"
+        });
+      }
+
+      // Check if code has expired
+      if (booking.codeExpiresAt && new Date() > new Date(booking.codeExpiresAt)) {
+        return res.status(400).json({
+          success: false,
+          message: "Booking code has expired"
+        });
+      }
+
+      // Check if booking is already paid
+      if (booking.status === "confirmed" && booking.paymentStatus === "paid") {
+        return res.status(400).json({
+          success: false,
+          message: "This booking has already been paid"
+        });
+      }
+
+      // Verify organizer access (optional - for additional security)
+      const eventsCollection = mongoStorage.db.collection("events");
+      const event = await eventsCollection.findOne({
+        _id: new ObjectId(booking.eventId)
+      });
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: "Event not found"
+        });
+      }
+
+      // Update booking status
+      const updateResult = await bookingsCollection.updateOne(
+        { _id: booking._id },
+        {
+          $set: {
+            status: "confirmed",
+            paymentStatus: "paid",
+            paymentMethod: "cash_at_event",
+            codeUsed: true,
+            codeUsedAt: new Date(),
+            collectedAmount: parseFloat(collectedAmount),
+            collectedBy: organizerId,
+            verifiedAt: new Date(),
+            updatedAt: new Date(),
+          }
+        }
+      );
+
+      if (updateResult.modifiedCount === 0) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to update booking status"
+        });
+      }
+
+      // Process payout split for the verified booking
+      try {
+        await payoutService.processPayoutSplit({
+          bookingId: booking._id.toString(),
+          eventId: booking.eventId,
+          organizationId: event.organizationId.toString(),
+          organizerId: event.organizerId.toString(),
+          totalAmount: parseFloat(collectedAmount),
+          paymentIntentId: `cash_${booking.bookingCode}_${Date.now()}`,
+          ticketDetails: booking.ticketDetails,
+          customerEmail: booking.userEmail,
+          customerName: booking.userName
+        });
+        console.log(`[Payout] Successfully processed revenue split for verified booking ${booking._id}`);
+      } catch (payoutError) {
+        console.error("[Payout] Error processing payout split for verified booking:", payoutError);
+        // Don't fail the verification if payout fails
+      }
+
+      // Send confirmation email to attendee
+      try {
+        const emailService = await import("./services/emailService.js");
+
+        const emailData = {
+          to: booking.userEmail,
+          userName: booking.userName,
+          eventTitle: booking.eventTitle,
+          bookingId: booking.bookingId,
+          totalAmount: collectedAmount,
+          collectedAt: new Date().toLocaleString(),
+          verificationCode: bookingCode
+        };
+
+        await emailService.sendPaymentConfirmationEmail(emailData);
+        console.log(`Payment confirmation email sent to ${booking.userEmail}`);
+      } catch (emailError) {
+        console.error("Failed to send payment confirmation email:", emailError);
+        // Don't fail the verification if email fails
+      }
+
+      console.log(`Successfully verified booking code ${bookingCode} for amount $${collectedAmount}`);
+
+      res.json({
+        success: true,
+        message: "Booking verified and payment collected successfully",
+        booking: {
+          bookingId: booking.bookingId,
+          eventTitle: booking.eventTitle,
+          attendeeName: booking.userName,
+          collectedAmount: parseFloat(collectedAmount),
+          verifiedAt: new Date(),
+        }
+      });
+    } catch (error: any) {
+      console.error("Error verifying booking code:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to verify booking code",
         message: error.message,
       });
     }
