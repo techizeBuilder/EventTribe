@@ -191,9 +191,16 @@ function MultiEventPaymentForm({ onSuccess, onClose }) {
       const data = await response.json();
 
       if (data.success) {
-        // Clear cart and notify success
+        console.log('Pay later booking successful, clearing cart...');
+
+        // Clear cart first
         await clearCart();
         console.log('Cart cleared after pay later booking');
+
+        // Force immediate refresh
+        window.dispatchEvent(new CustomEvent('cartCleared'));
+        window.dispatchEvent(new CustomEvent('forceCartRefresh'));
+
         toast.success("Booking confirmed! Check your email for the verification code.");
         onSuccess({
           payLater: true,

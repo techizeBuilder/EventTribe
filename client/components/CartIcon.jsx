@@ -5,26 +5,27 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 export default function CartIcon() {
-  const { cartCount, fetchCartCount } = useCart();
-  const [displayCount, setDisplayCount] = useState(cartCount);
+  const { cartCount, fetchCart } = useCart();
   const navigate = useNavigate();
 
-  // Update display count whenever cartCount changes
-  useEffect(() => {
-    setDisplayCount(cartCount);
-  }, [cartCount]);
+  // Debug logging
+  console.log('[CartIcon] Rendering - cartCount:', cartCount);
 
+  // Listen for cart events
   useEffect(() => {
-    const handleCartUpdate = async () => {
-      // Add a small delay to ensure backend operations are complete
-      setTimeout(async () => {
-        await fetchCartCount();
-      }, 200);
+    const handleCartEvent = async () => {
+      console.log('[CartIcon] Cart event received, refreshing...');
+      await fetchCart();
     };
 
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
-  }, [fetchCartCount]);
+    window.addEventListener('cartCleared', handleCartEvent);
+    window.addEventListener('cartUpdated', handleCartEvent);
+
+    return () => {
+      window.removeEventListener('cartCleared', handleCartEvent);
+      window.removeEventListener('cartUpdated', handleCartEvent);
+    };
+  }, [fetchCart]);
 
   const handleClick = () => {
     navigate('/cart');
@@ -34,17 +35,27 @@ export default function CartIcon() {
     <button
       onClick={handleClick}
       className="relative p-2 text-gray-300 hover:text-white transition-colors"
+      title={`Cart (${cartCount} items)`}
     >
       <FiShoppingCart className="w-6 h-6" />
-      {displayCount > 0 && (
+
+      {/* TEMPORARY DEBUG BADGE - Always shows if cartCount exists */}
+      <div
+        className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-1 rounded"
+        style={{ zIndex: 1000 }}
+      >
+      </div>
+
+      {cartCount > 0 && (
         <motion.span
-          key={displayCount} // Force re-render on count change
+          key={cartCount}
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           exit={{ scale: 0 }}
           className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold"
+          style={{ zIndex: 999 }}
         >
-          {displayCount > 99 ? '99+' : displayCount}
+          {cartCount > 99 ? '99+' : cartCount}
         </motion.span>
       )}
     </button>

@@ -7,22 +7,43 @@ import { toast } from 'react-hot-toast'
 import MultiEventPaymentModal from '../components/MultiEventPaymentModal'
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, updateQuantity, clearCart } = useCart()
+  const { cartItems, removeFromCart, updateQuantity, clearCart, fetchCart } = useCart()
   const navigate = useNavigate()
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [forceUpdate, setForceUpdate] = useState(0)
 
-  // Listen for cart updates and force re-render
+  // Listen for cart events
   useEffect(() => {
-    const handleCartUpdate = () => {
-      setForceUpdate(prev => prev + 1)
-    }
+    const handleCartEvent = () => {
+      console.log('CartPage: Cart event received, forcing refresh...');
+      setForceUpdate(prev => prev + 1);
+      fetchCart();
+    };
 
-    window.addEventListener('cartUpdated', handleCartUpdate)
+    window.addEventListener('cartCleared', handleCartEvent);
+    window.addEventListener('cartUpdated', handleCartEvent);
+
     return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdate)
-    }
-  }, [])
+      window.removeEventListener('cartCleared', handleCartEvent);
+      window.removeEventListener('cartUpdated', handleCartEvent);
+    };
+  }, [fetchCart]);
+
+  // Force initial load
+  useEffect(() => {
+    fetchCart();
+  }, [fetchCart]);
+
+  // Additional effect to monitor cart items changes
+  useEffect(() => {
+    console.log('CartPage: Cart items changed:', cartItems?.length || 0, 'items');
+    console.log('CartPage: Current cart items:', cartItems);
+  }, [cartItems])
+
+  // Additional effect to monitor force updates
+  useEffect(() => {
+    console.log('CartPage: Force update triggered:', forceUpdate);
+  }, [forceUpdate])
 
   const handleQuantityChange = async (itemId, newQuantity) => {
     if (newQuantity < 1) {
@@ -30,26 +51,14 @@ export default function CartPage() {
     } else {
       await updateQuantity(itemId, newQuantity)
     }
-    // Force a small delay to ensure the UI updates are complete
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
-    }, 100)
   }
 
   const handleRemoveItem = async (itemId) => {
     await removeFromCart(itemId)
-    // Force a small delay to ensure the UI updates are complete
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
-    }, 100)
   }
 
   const handleClearCart = async () => {
     await clearCart()
-    // Force a small delay to ensure the UI updates are complete
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent('cartUpdated'))
-    }, 100)
   }
 
   const calculateTotal = () => {
@@ -248,15 +257,14 @@ export default function CartPage() {
           isOpen={showPaymentModal}
           onClose={() => setShowPaymentModal(false)}
           onSuccess={(result) => {
+            console.log('Payment modal success, result:', result);
             setShowPaymentModal(false);
-            // Force cart refresh after successful payment/booking
-            setTimeout(() => {
-              window.dispatchEvent(new CustomEvent('cartUpdated'));
-            }, 100);
 
             if (result.payLater) {
+              console.log('Pay later booking completed');
               toast.success("Pay Later booking confirmed! Check your email for verification codes.");
             } else {
+              console.log('Payment completed');
               toast.success("Payment successful! Your tickets have been purchased.");
             }
           }}
