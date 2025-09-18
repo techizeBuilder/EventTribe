@@ -371,7 +371,7 @@ export default function MultiEventPaymentModal({ isOpen, onClose, onSuccess }) {
 
   const handleSuccess = (paymentResult) => {
     console.log("Payment successful:", paymentResult);
-    
+
     // Call the parent's onSuccess if provided, otherwise use default behavior
     if (onSuccess) {
       onSuccess(paymentResult);

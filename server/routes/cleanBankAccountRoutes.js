@@ -10,14 +10,25 @@ bankAccountRouter.get('/', async (req, res) => {
         const organizerId = req.user._id;
         console.log('=== GET BANK ACCOUNTS ===');
         console.log('Organizer ID:', organizerId);
+        console.log('Organizer ID type:', typeof organizerId);
 
+        // Import ObjectId properly
         const { mongoStorage } = await import('../mongodb-storage.js');
         await mongoStorage.connect();
         const { ObjectId } = await import('mongodb');
+
+        console.log('Is ObjectId:', organizerId instanceof ObjectId);
+        console.log('Full req.user:', JSON.stringify(req.user, null, 2));
         const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
 
+        // Ensure organizerId is converted to ObjectId if it's a string
+        let queryId = organizerId;
+        if (typeof organizerId === 'string') {
+            queryId = new ObjectId(organizerId);
+        }
+
         const bankAccounts = await bankAccountsCollection
-            .find({ organizerId: organizerId }) // organizerId is already an ObjectId
+            .find({ organizerId: queryId })
             .sort({ createdAt: -1 })
             .toArray();
 
@@ -109,7 +120,16 @@ bankAccountRouter.post('/', async (req, res) => {
 
         // Get organizer's Stripe Connect account from users collection
         console.log('Looking up organizer in users collection...');
-        const organizer = await usersCollection.findOne({ _id: organizerId }); // organizerId is already an ObjectId
+        console.log('Looking for organizer with ID:', organizerId);
+        console.log('Organizer ID type:', typeof organizerId);
+
+        // Ensure organizerId is converted to ObjectId if it's a string
+        let queryId = organizerId;
+        if (typeof organizerId === 'string') {
+            queryId = new ObjectId(organizerId);
+        }
+
+        const organizer = await usersCollection.findOne({ _id: queryId });
 
         console.log('Organizer lookup result:');
         console.log('- Found:', organizer ? 'Yes' : 'No');
@@ -517,6 +537,191 @@ bankAccountRouter.get('/:id/status', async (req, res) => {
         console.error('❌ Error getting bank account status:', error);
         res.status(500).json({
             error: 'Failed to get bank account status',
+            message: error.message
+        });
+    }
+});
+
+// PUT /api/organizer/bank-accounts/:id - Update bank account (e.g., set as default)
+bankAccountRouter.put('/:id', async (req, res) => {
+    try {
+        const organizerId = req.user._id;
+        const { id } = req.params;
+        const { isDefault } = req.body;
+
+        console.log('=== UPDATE BANK ACCOUNT ===');
+        console.log('Organizer ID:', organizerId);
+        console.log('Bank Account ID:', id);
+        console.log('Setting as default:', isDefault);
+
+        // Connect to MongoDB
+        const { mongoStorage } = await import('../mongodb-storage.js');
+        await mongoStorage.connect();
+        const { ObjectId } = await import('mongodb');
+        const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+
+        // Verify the bank account belongs to the organizer
+        const bankAccount = await bankAccountsCollection.findOne({
+            _id: new ObjectId(id),
+            organizerId: organizerId
+        });
+
+        if (!bankAccount) {
+            console.log('ERROR: Bank account not found');
+            return res.status(404).json({ error: 'Bank account not found' });
+        }
+
+        // If setting as default, first remove default from all other accounts
+        if (isDefault) {
+            await bankAccountsCollection.updateMany(
+                { organizerId: organizerId },
+                { $set: { isDefault: false } }
+            );
+        }
+
+        // Update the specific account
+        const updateData = {
+            updatedAt: new Date()
+        };
+
+        if (typeof isDefault === 'boolean') {
+            updateData.isDefault = isDefault;
+        }
+
+        await bankAccountsCollection.updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateData }
+        );
+
+        console.log('✅ Bank account updated successfully');
+        res.json({
+            success: true,
+            message: 'Bank account updated successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating bank account:', error);
+        res.status(500).json({
+            error: 'Failed to update bank account',
+            message: error.message
+        });
+    }
+});
+
+// DELETE /api/organizer/bank-accounts/:id - Delete bank account
+bankAccountRouter.delete('/:id', async (req, res) => {
+    try {
+        const organizerId = req.user._id;
+        const { id } = req.params;
+
+        console.log('=== DELETE BANK ACCOUNT ===');
+        console.log('Organizer ID:', organizerId);
+        console.log('Organizer ID type:', typeof organizerId);
+        console.log('Bank Account ID:', id);
+        console.log('Bank Account ID type:', typeof id);
+
+        // Connect to MongoDB
+        const { mongoStorage } = await import('../mongodb-storage.js');
+        await mongoStorage.connect();
+        const { ObjectId } = await import('mongodb');
+        const bankAccountsCollection = mongoStorage.db.collection('bank_accounts');
+        const usersCollection = mongoStorage.db.collection('users');
+
+        // Ensure proper ObjectId conversion
+        let queryOrganizerID = organizerId;
+        if (typeof organizerId === 'string') {
+            queryOrganizerID = new ObjectId(organizerId);
+        }
+
+        let queryBankAccountId;
+        try {
+            queryBankAccountId = new ObjectId(id);
+        } catch (objectIdError) {
+            console.log('ERROR: Invalid bank account ID format');
+            return res.status(400).json({ error: 'Invalid bank account ID format' });
+        }
+
+        console.log('Query ObjectIds:', {
+            organizerId: queryOrganizerID,
+            bankAccountId: queryBankAccountId
+        });
+
+        // Verify the bank account belongs to the organizer
+        const bankAccount = await bankAccountsCollection.findOne({
+            _id: queryBankAccountId,
+            organizerId: queryOrganizerID
+        });
+
+        console.log('Bank account found:', bankAccount ? 'Yes' : 'No');
+        if (bankAccount) {
+            console.log('Bank account details:', {
+                id: bankAccount._id,
+                organizerId: bankAccount.organizerId,
+                last4: bankAccount.last4
+            });
+        }
+
+        if (!bankAccount) {
+            console.log('ERROR: Bank account not found or does not belong to organizer');
+            return res.status(404).json({ error: 'Bank account not found' });
+        }
+
+        // Get organizer's Stripe Connect account
+        const organizer = await usersCollection.findOne({ _id: queryOrganizerID });
+
+        if (!organizer) {
+            console.log('ERROR: Organizer not found');
+            return res.status(404).json({ error: 'Organizer not found' });
+        }
+
+        console.log('Organizer found:', organizer.email);
+        console.log('Has Stripe account:', !!organizer.stripeConnectedAccountId);
+
+        // Delete from Stripe if we have the external account ID
+        if (organizer.stripeConnectedAccountId && bankAccount.stripeExternalAccountId) {
+            try {
+                const Stripe = (await import('stripe')).default;
+                const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+                    apiVersion: '2025-08-27.basil'
+                });
+
+                console.log('Deleting from Stripe Connect account...');
+                await stripe.accounts.deleteExternalAccount(
+                    organizer.stripeConnectedAccountId,
+                    bankAccount.stripeExternalAccountId
+                );
+                console.log('✅ Deleted from Stripe successfully');
+            } catch (stripeError) {
+                console.error('⚠️ Warning: Failed to delete from Stripe:', stripeError.message);
+                // Continue with MongoDB deletion even if Stripe fails
+            }
+        }
+
+        // Delete from MongoDB
+        console.log('Deleting from MongoDB...');
+        const deleteResult = await bankAccountsCollection.deleteOne({
+            _id: queryBankAccountId,
+            organizerId: queryOrganizerID
+        });
+
+        console.log('Delete result:', deleteResult);
+
+        if (deleteResult.deletedCount === 0) {
+            console.log('ERROR: Failed to delete bank account from database');
+            return res.status(404).json({ error: 'Bank account not found' });
+        }
+
+        console.log('✅ Bank account deleted successfully');
+        res.json({
+            success: true,
+            message: 'Bank account deleted successfully'
+        });
+
+    } catch (error) {
+        console.error('❌ Error deleting bank account:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({
+            error: 'Failed to delete bank account',
             message: error.message
         });
     }
