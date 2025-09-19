@@ -58,13 +58,13 @@ export default function EditEvent() {
   useEffect(() => {
     const token = localStorage.getItem("token") || localStorage.getItem("authToken");
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    
+
     if (!token) {
       toast.error("Please login first to edit events");
       navigate("/login");
       return;
     }
-    
+
     if (user.role !== "organizer") {
       toast.error("Only organizers can edit events. Please login as an organizer.");
       navigate("/login");
@@ -91,7 +91,7 @@ export default function EditEvent() {
         category: eventData.category || "",
         showOnExplore: eventData.isPublic || false,
       });
-      
+
       // Load existing tickets with all additional settings
       if (eventData.ticketTypes && eventData.ticketTypes.length > 0) {
         const existingTickets = eventData.ticketTypes.map((ticket, index) => ({
@@ -127,7 +127,7 @@ export default function EditEvent() {
         }));
         setTickets(existingTickets);
       }
-      
+
       if (eventData.image || eventData.coverImage) {
         setImagePreview(eventData.image || eventData.coverImage);
       }
@@ -253,13 +253,13 @@ export default function EditEvent() {
 
       // Compress image for better performance and smaller payload
       const compressedImage = await compressImage(file, 1200, 800, 0.8, 500);
-      
+
       // Create a blob from the base64 string
       const compressedBlob = await fetch(compressedImage).then(r => r.blob());
       const compressedFile = new File([compressedBlob], file.name, { type: file.type });
-      
+
       setSelectedImage(compressedFile);
-      
+
       // Store compressed base64 for submission
       setFormData((prev) => ({ ...prev, imageData: compressedImage }));
 
@@ -373,7 +373,7 @@ export default function EditEvent() {
           // If response is not JSON, use status text
           errorMessage = `Server error: ${response.status} ${response.statusText}`;
         }
-        
+
         if (response.status === 401) {
           toast.error("Your session has expired. Please login again as an organizer.");
           localStorage.removeItem("token");
@@ -449,11 +449,10 @@ export default function EditEvent() {
                   </label>
                   <button
                     onClick={() => setFormData(prev => ({ ...prev, showOnExplore: !prev.showOnExplore }))}
-                    className={`mt-2 text-xs px-2 py-1 rounded transition-colors ${
-                      formData.showOnExplore 
-                        ? "bg-green-600 text-white" 
-                        : "bg-gray-600 text-gray-300"
-                    }`}
+                    className={`mt-2 text-xs px-2 py-1 rounded transition-colors ${formData.showOnExplore
+                      ? "bg-green-600 text-white"
+                      : "bg-gray-600 text-gray-300"
+                      }`}
                   >
                     {formData.showOnExplore ? "✓ " : ""}Show on Explore
                   </button>
@@ -753,11 +752,10 @@ export default function EditEvent() {
                               {ticket.name}
                             </h4>
                             <span
-                              className={`text-xs px-2 py-0.5 rounded ${
-                                ticket.availability === "Available"
-                                  ? "bg-green-600 text-white"
-                                  : "bg-red-600 text-white"
-                              }`}
+                              className={`text-xs px-2 py-0.5 rounded ${ticket.availability === "Available"
+                                ? "bg-green-600 text-white"
+                                : "bg-red-600 text-white"
+                                }`}
                             >
                               {ticket.availability}
                             </span>
@@ -822,11 +820,10 @@ export default function EditEvent() {
                 type="submit"
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`w-full font-bold py-4 px-6 rounded-lg transition-colors text-lg ${
-                  isSubmitting
-                    ? "bg-gray-600 text-gray-300 cursor-not-allowed"
-                    : "bg-blue-600 text-white hover:bg-blue-700"
-                }`}
+                className={`w-full font-bold py-4 px-6 rounded-lg transition-colors text-lg ${isSubmitting
+                  ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                  : "bg-blue-600 text-white hover:bg-blue-700"
+                  }`}
                 whileHover={!isSubmitting ? { scale: 1.02 } : {}}
                 whileTap={!isSubmitting ? { scale: 0.98 } : {}}
               >
